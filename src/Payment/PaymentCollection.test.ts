@@ -7,7 +7,6 @@ import { Currency } from "../Currency"
 import { PaymentId } from "./PaymentId"
 import { Timestamp } from "../Timestamp"
 import { PaymentAlreadyFoundError } from "./Error/PaymentAlreadyFoundError"
-import { PaymentReceivableCollection } from "./Receivable/PaymentReceivableCollection"
 
 describe("PaymentCollection", (): void => {
 	interface ScenarioToTestContains {
@@ -21,14 +20,12 @@ describe("PaymentCollection", (): void => {
 		new PaymentId("1"),
 		new Timestamp(11),
 		new Money(Currency.EUR, 111),
-		new PaymentReceivableCollection([]),
 	)
 
 	const anotherPayment = new Payment(
 		new PaymentId("2"),
 		new Timestamp(22),
 		new Money(Currency.EUR, 222),
-		new PaymentReceivableCollection([]),
 	)
 
 	const scenariosToTestContains: ScenarioToTestContains[] = [
