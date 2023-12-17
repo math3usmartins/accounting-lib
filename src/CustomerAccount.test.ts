@@ -18,10 +18,12 @@ import { ReceivableAddedToCustomerAccount } from "./CustomerAccount/Event/Receiv
 import { Payment } from "./Payment"
 import { PaymentId } from "./Payment/PaymentId"
 import { ReceivablePayment } from "./Receivable/Payment/ReceivablePayment"
+import {CustomerAccountVersion} from "./CustomerAccount/CustomerAccountVersion";
 
 const givenCustomerAccountId = new CustomerAccountId("customer-1")
 const givenCustomerAccount = new CustomerAccount(
 	givenCustomerAccountId,
+	new CustomerAccountVersion(1),
 	new ReceivableCollection<Invoice>(givenCustomerAccountId, []),
 	new PaymentCollection([]),
 )
@@ -58,6 +60,7 @@ describe("CustomerAccount.fromEvents()", (): void => {
 
 		const expected = new CustomerAccount(
 			givenCustomerAccountId,
+			new CustomerAccountVersion(2),
 			new ReceivableCollection(givenCustomerAccountId, [givenInvoice]),
 			new PaymentCollection([]),
 		)
@@ -77,6 +80,7 @@ describe("CustomerAccount.allocateReceivable()", (): void => {
 			dateTime: new Timestamp(332211),
 			expectedAggregate: new CustomerAccount(
 				givenCustomerAccountId,
+				new CustomerAccountVersion(2),
 				new ReceivableCollection<Invoice>(givenCustomerAccountId, [givenInvoice]),
 				new PaymentCollection([]),
 			),
@@ -91,6 +95,7 @@ describe("CustomerAccount.allocateReceivable()", (): void => {
 			dateTime: new Timestamp(332211),
 			expectedAggregate: new CustomerAccount(
 				givenCustomerAccountId,
+				new CustomerAccountVersion(4),
 				new ReceivableCollection<Invoice>(givenCustomerAccountId, [
 					givenInvoice.allocatePayment(
 						new ReceivablePayment(
