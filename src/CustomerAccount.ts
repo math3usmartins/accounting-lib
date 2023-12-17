@@ -9,7 +9,7 @@ import { PaymentAddedToCustomerAccount } from "./CustomerAccount/Event/PaymentAd
 import { ReceivableAddedToCustomerAccount } from "./CustomerAccount/Event/ReceivableAddedToCustomerAccount"
 import { type CustomerAccountEvent } from "./CustomerAccount/CustomerAccountEvent"
 import { type Invoice } from "./Receivable/Invoice"
-import {CustomerAccountVersion} from "./CustomerAccount/CustomerAccountVersion";
+import { CustomerAccountVersion } from "./CustomerAccount/CustomerAccountVersion"
 
 type CustomerAccountAggregateCommandOutput = AggregateCommandOutput<CustomerAccount, CustomerAccountEvent>
 
@@ -25,7 +25,7 @@ export class CustomerAccount {
 		return events.reduce(
 			(account: CustomerAccount, event: CustomerAccountEvent) => {
 				if (event instanceof PaymentAddedToCustomerAccount) {
-					return account.allocatePayment(event.payment).aggregate
+					return account.allocatePayment(event.payment, event.dateTime).aggregate
 				}
 
 				if (event instanceof ReceivableAddedToCustomerAccount) {
@@ -34,7 +34,12 @@ export class CustomerAccount {
 
 				throw new Error("Event not supported" + event.constructor.name)
 			},
-			new CustomerAccount(id, new CustomerAccountVersion(1), new ReceivableCollection(id, []), new PaymentCollection([])),
+			new CustomerAccount(
+				id,
+				new CustomerAccountVersion(1),
+				new ReceivableCollection(id, []),
+				new PaymentCollection([]),
+			),
 		)
 	}
 
@@ -42,7 +47,12 @@ export class CustomerAccount {
 		receivable: Receivable<Invoice>,
 		dateTime: Timestamp,
 	): CustomerAccountAggregateCommandOutput {
-		const customerWithReceivable = new CustomerAccount(this.id, this.version.next(), this.receivables.with(receivable), this.payments)
+		const customerWithReceivable = new CustomerAccount(
+			this.id,
+			this.version.next(),
+			this.receivables.with(receivable),
+			this.payments,
+		)
 
 		const allocateAvailablePayments = customerWithReceivable.allocateAvailablePayments(dateTime)
 
@@ -52,20 +62,20 @@ export class CustomerAccount {
 		])
 	}
 
-	public allocatePayment(payment: Payment): CustomerAccountAggregateCommandOutput {
+	public allocatePayment(payment: Payment, dateTime: Timestamp): CustomerAccountAggregateCommandOutput {
 		const payments = this.payments.with(payment)
-		const receivablesAllocation = this.receivables.allocatePayment(payment)
+		const receivablesAllocation = this.receivables.allocatePayment(payment, dateTime)
 
-		return new AggregateCommandOutput(new CustomerAccount(this.id, this.version.next(), receivablesAllocation.aggregate, payments), [
-			new PaymentAddedToCustomerAccount(payment, this.id, payment.dateTime),
-			...receivablesAllocation.events,
-		])
+		return new AggregateCommandOutput(
+			new CustomerAccount(this.id, this.version.next(), receivablesAllocation.aggregate, payments),
+			[new PaymentAddedToCustomerAccount(payment, this.id, payment.dateTime), ...receivablesAllocation.events],
+		)
 	}
 
 	private allocateAvailablePayments(dateTime: Timestamp): CustomerAccountAggregateCommandOutput {
 		return this.payments.items().reduce(
 			(carry: CustomerAccountAggregateCommandOutput, payment: Payment) => {
-				const receivablesAllocationOutput = carry.aggregate.receivables.allocatePayment(payment)
+				const receivablesAllocationOutput = carry.aggregate.receivables.allocatePayment(payment, dateTime)
 
 				const customerWithAllocatedPayments = new CustomerAccount(
 					this.id,

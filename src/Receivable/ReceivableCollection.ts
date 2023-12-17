@@ -4,6 +4,7 @@ import { ReceivablePayment } from "./Payment/ReceivablePayment"
 import { AggregateCommandOutput } from "../AggregateCommandOutput"
 import { type CustomerAccountId } from "../CustomerAccount/CustomerAccountId"
 import { type PaymentAllocatedToReceivable } from "./Event/PaymentAllocatedToReceivable"
+import { type Timestamp } from "../Timestamp"
 
 type AllocatePaymentOutput<Type> = AggregateCommandOutput<ReceivableCollection<Type>, PaymentAllocatedToReceivable>
 
@@ -35,7 +36,7 @@ export class ReceivableCollection<Type> {
 		return new ReceivableCollection(this.customerAccountId, [...this._items, item])
 	}
 
-	public allocatePayment(payment: Payment): AllocatePaymentOutput<Type> {
+	public allocatePayment(payment: Payment, dateTime: Timestamp): AllocatePaymentOutput<Type> {
 		let remainingAmount = payment.amount
 		const events: PaymentAllocatedToReceivable[] = []
 
@@ -51,7 +52,7 @@ export class ReceivableCollection<Type> {
 			remainingAmount = remainingAmount.subtract(deductible.cents)
 
 			const allocatePaymentOutput = receivable.allocatePayment(
-				new ReceivablePayment(payment.dateTime, payment.id, deductible),
+				new ReceivablePayment(dateTime, payment.id, deductible),
 			)
 
 			events.push(...allocatePaymentOutput.events)
