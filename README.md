@@ -27,5 +27,7 @@ Unfortunately that's not the case for [Haskell][3] or other purely functional
 programming languages.
 
 [1]: https://en.wikipedia.org/wiki/Domain-driven_design
+
 [2]: https://en.wikipedia.org/wiki/Functional_programming
+
 [3]: https://en.wikipedia.org/wiki/Haskell

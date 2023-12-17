@@ -7,7 +7,9 @@ export class PaymentCollection {
 	public items = (): Payment[] => this._items
 
 	public contains(item: Payment): boolean {
-		const alreadyExistingIndex = this._items.findIndex((v) => v.id.isEqualTo(item.id))
+		const alreadyExistingIndex = this._items.findIndex((v) =>
+			v.id.isEqualTo(item.id),
+		)
 
 		return alreadyExistingIndex >= 0
 	}
@@ -20,5 +22,9 @@ export class PaymentCollection {
 		return new PaymentCollection([...this._items, payment])
 	}
 
-	public total = (): number => this._items.reduce((sum: number, current: Payment) => sum + current.amount.cents, 0)
+	public total = (): number =>
+		this._items.reduce(
+			(sum: number, current: Payment) => sum + current.amount.cents,
+			0,
+		)
 }

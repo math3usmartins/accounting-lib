@@ -11,7 +11,10 @@ import { type CustomerAccountEvent } from "./CustomerAccount/CustomerAccountEven
 import { type Invoice } from "./Receivable/Invoice"
 import { CustomerAccountVersion } from "./CustomerAccount/CustomerAccountVersion"
 
-type CustomerAccountAggregateCommandOutput = AggregateCommandOutput<CustomerAccount, CustomerAccountEvent>
+type CustomerAccountAggregateCommandOutput = AggregateCommandOutput<
+	CustomerAccount,
+	CustomerAccountEvent
+>
 
 export class CustomerAccount {
 	constructor(
@@ -21,15 +24,24 @@ export class CustomerAccount {
 		private readonly payments: PaymentCollection,
 	) {}
 
-	public static fromEvents(id: CustomerAccountId, events: CustomerAccountEvent[]): CustomerAccount {
+	public static fromEvents(
+		id: CustomerAccountId,
+		events: CustomerAccountEvent[],
+	): CustomerAccount {
 		return events.reduce(
 			(account: CustomerAccount, event: CustomerAccountEvent) => {
 				if (event instanceof PaymentAddedToCustomerAccount) {
-					return account.allocatePayment(event.payment, event.dateTime).aggregate
+					return account.allocatePayment(
+						event.payment,
+						event.dateTime,
+					).aggregate
 				}
 
 				if (event instanceof ReceivableAddedToCustomerAccount) {
-					return account.allocateReceivable(event.receivable, event.dateTime).aggregate
+					return account.allocateReceivable(
+						event.receivable,
+						event.dateTime,
+					).aggregate
 				}
 
 				throw new Error("Event not supported" + event.constructor.name)
@@ -54,7 +66,8 @@ export class CustomerAccount {
 			this.payments,
 		)
 
-		const allocateAvailablePayments = customerWithReceivable.allocateAvailablePayments(dateTime)
+		const allocateAvailablePayments =
+			customerWithReceivable.allocateAvailablePayments(dateTime)
 
 		return new AggregateCommandOutput(allocateAvailablePayments.aggregate, [
 			new ReceivableAddedToCustomerAccount(receivable, this.id, dateTime),
@@ -62,20 +75,47 @@ export class CustomerAccount {
 		])
 	}
 
-	public allocatePayment(payment: Payment, dateTime: Timestamp): CustomerAccountAggregateCommandOutput {
+	public allocatePayment(
+		payment: Payment,
+		dateTime: Timestamp,
+	): CustomerAccountAggregateCommandOutput {
 		const payments = this.payments.with(payment)
-		const receivablesAllocation = this.receivables.allocatePayment(payment, dateTime)
+		const receivablesAllocation = this.receivables.allocatePayment(
+			payment,
+			dateTime,
+		)
 
 		return new AggregateCommandOutput(
-			new CustomerAccount(this.id, this.version.next(), receivablesAllocation.aggregate, payments),
-			[new PaymentAddedToCustomerAccount(payment, this.id, payment.dateTime), ...receivablesAllocation.events],
+			new CustomerAccount(
+				this.id,
+				this.version.next(),
+				receivablesAllocation.aggregate,
+				payments,
+			),
+			[
+				new PaymentAddedToCustomerAccount(
+					payment,
+					this.id,
+					payment.dateTime,
+				),
+				...receivablesAllocation.events,
+			],
 		)
 	}
 
-	private allocateAvailablePayments(dateTime: Timestamp): CustomerAccountAggregateCommandOutput {
+	private allocateAvailablePayments(
+		dateTime: Timestamp,
+	): CustomerAccountAggregateCommandOutput {
 		return this.payments.items().reduce(
-			(carry: CustomerAccountAggregateCommandOutput, payment: Payment) => {
-				const receivablesAllocationOutput = carry.aggregate.receivables.allocatePayment(payment, dateTime)
+			(
+				carry: CustomerAccountAggregateCommandOutput,
+				payment: Payment,
+			) => {
+				const receivablesAllocationOutput =
+					carry.aggregate.receivables.allocatePayment(
+						payment,
+						dateTime,
+					)
 
 				const customerWithAllocatedPayments = new CustomerAccount(
 					this.id,
@@ -84,10 +124,10 @@ export class CustomerAccount {
 					this.payments,
 				)
 
-				return new AggregateCommandOutput(customerWithAllocatedPayments, [
-					...carry.events,
-					...receivablesAllocationOutput.events,
-				])
+				return new AggregateCommandOutput(
+					customerWithAllocatedPayments,
+					[...carry.events, ...receivablesAllocationOutput.events],
+				)
 			},
 			new AggregateCommandOutput(this, []),
 		)

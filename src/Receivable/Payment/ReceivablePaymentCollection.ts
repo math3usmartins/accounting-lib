@@ -8,8 +8,15 @@ export class ReceivablePaymentCollection {
 	) {}
 
 	public with = (item: ReceivablePayment): ReceivablePaymentCollection =>
-		new ReceivablePaymentCollection(this.receivableId, [...this.items, item])
+		new ReceivablePaymentCollection(this.receivableId, [
+			...this.items,
+			item,
+		])
 
 	public total = (): number =>
-		this.items.reduce((carry: number, payment: ReceivablePayment) => carry + payment.amount.cents, 0)
+		this.items.reduce(
+			(carry: number, payment: ReceivablePayment) =>
+				carry + payment.amount.cents,
+			0,
+		)
 }

@@ -34,7 +34,10 @@ const anotherInvoice = new Invoice(
 	false,
 )
 
-const emptyReceivableCollection = new ReceivableCollection<Invoice>(givenInvoice.customerAccountId, [])
+const emptyReceivableCollection = new ReceivableCollection<Invoice>(
+	givenInvoice.customerAccountId,
+	[],
+)
 
 describe("ReceivableCollection.contains()", (): void => {
 	const scenarios = (): ScenarioForContainsMethod[] => [
@@ -46,13 +49,17 @@ describe("ReceivableCollection.contains()", (): void => {
 		},
 		{
 			name: "first entry found",
-			collection: emptyReceivableCollection.with(givenInvoice).with(anotherInvoice),
+			collection: emptyReceivableCollection
+				.with(givenInvoice)
+				.with(anotherInvoice),
 			receivable: givenInvoice,
 			expected: true,
 		},
 		{
 			name: "last entry found",
-			collection: emptyReceivableCollection.with(givenInvoice).with(anotherInvoice),
+			collection: emptyReceivableCollection
+				.with(givenInvoice)
+				.with(anotherInvoice),
 			receivable: anotherInvoice,
 			expected: true,
 		},
@@ -60,7 +67,10 @@ describe("ReceivableCollection.contains()", (): void => {
 
 	scenarios().forEach((scenario: ScenarioForContainsMethod) => {
 		it(`contains: ${scenario.name}`, () => {
-			assert.equal(scenario.expected, scenario.collection.contains(scenario.receivable))
+			assert.equal(
+				scenario.expected,
+				scenario.collection.contains(scenario.receivable),
+			)
 		})
 	})
 })
@@ -80,11 +90,19 @@ describe("ReceivableCollection.with()", () => {
 })
 
 describe("ReceivableCollection.allocatePayment()", (): void => {
-	const givenInvoiceFullPayment = new Payment(new PaymentId("1"), new Timestamp(1), givenInvoice.amount)
+	const givenInvoiceFullPayment = new Payment(
+		new PaymentId("1"),
+		new Timestamp(1),
+		givenInvoice.amount,
+	)
 	const paymentAllocatedAt = new Timestamp(2)
 
 	const givenInvoiceWithFullPayment = givenInvoice.allocatePayment(
-		new ReceivablePayment(paymentAllocatedAt, givenInvoiceFullPayment.id, givenInvoiceFullPayment.amount),
+		new ReceivablePayment(
+			paymentAllocatedAt,
+			givenInvoiceFullPayment.id,
+			givenInvoiceFullPayment.amount,
+		),
 	).aggregate
 
 	const givenInvoicePartialPayment = new Payment(
@@ -94,7 +112,11 @@ describe("ReceivableCollection.allocatePayment()", (): void => {
 	)
 
 	const givenInvoiceWithPartialPayment = givenInvoice.allocatePayment(
-		new ReceivablePayment(paymentAllocatedAt, givenInvoicePartialPayment.id, givenInvoicePartialPayment.amount),
+		new ReceivablePayment(
+			paymentAllocatedAt,
+			givenInvoicePartialPayment.id,
+			givenInvoicePartialPayment.amount,
+		),
 	).aggregate
 
 	const overPayment = new Payment(
@@ -102,22 +124,34 @@ describe("ReceivableCollection.allocatePayment()", (): void => {
 		new Timestamp(1),
 		givenInvoice.amount.add(anotherInvoice.amount.cents).add(1),
 	)
-	const anotherInvoiceFullPayment = new Payment(new PaymentId("1"), new Timestamp(1), anotherInvoice.amount)
+	const anotherInvoiceFullPayment = new Payment(
+		new PaymentId("1"),
+		new Timestamp(1),
+		anotherInvoice.amount,
+	)
 
 	const anotherInvoiceWithFullPayment = anotherInvoice.allocatePayment(
-		new ReceivablePayment(paymentAllocatedAt, anotherInvoiceFullPayment.id, anotherInvoiceFullPayment.amount),
+		new ReceivablePayment(
+			paymentAllocatedAt,
+			anotherInvoiceFullPayment.id,
+			anotherInvoiceFullPayment.amount,
+		),
 	).aggregate
 
 	const scenarios: ScenarioForAllocatePayment[] = [
 		{
 			name: "empty collection",
 			collection: emptyReceivableCollection,
-			payment: new Payment(new PaymentId("1"), new Timestamp(1), new Money(Currency.EUR, 10000)),
-			allocatedAt: new Timestamp(2),
-			expected: new AggregateCommandOutput<ReceivableCollection<Invoice>, PaymentAllocatedToReceivable>(
-				emptyReceivableCollection,
-				[],
+			payment: new Payment(
+				new PaymentId("1"),
+				new Timestamp(1),
+				new Money(Currency.EUR, 10000),
 			),
+			allocatedAt: new Timestamp(2),
+			expected: new AggregateCommandOutput<
+				ReceivableCollection<Invoice>,
+				PaymentAllocatedToReceivable
+			>(emptyReceivableCollection, []),
 			expectedAllocatedAmounts: [],
 		},
 		{
@@ -125,18 +159,18 @@ describe("ReceivableCollection.allocatePayment()", (): void => {
 			collection: emptyReceivableCollection.with(givenInvoice),
 			payment: givenInvoiceFullPayment,
 			allocatedAt: new Timestamp(2),
-			expected: new AggregateCommandOutput<ReceivableCollection<Invoice>, PaymentAllocatedToReceivable>(
-				emptyReceivableCollection.with(givenInvoiceWithFullPayment),
-				[
-					new PaymentAllocatedToReceivable(
-						paymentAllocatedAt,
-						new PaymentId("1"),
-						givenInvoice.id,
-						givenInvoice.customerAccountId,
-						givenInvoiceFullPayment.amount,
-					),
-				],
-			),
+			expected: new AggregateCommandOutput<
+				ReceivableCollection<Invoice>,
+				PaymentAllocatedToReceivable
+			>(emptyReceivableCollection.with(givenInvoiceWithFullPayment), [
+				new PaymentAllocatedToReceivable(
+					paymentAllocatedAt,
+					new PaymentId("1"),
+					givenInvoice.id,
+					givenInvoice.customerAccountId,
+					givenInvoiceFullPayment.amount,
+				),
+			]),
 			expectedAllocatedAmounts: [10000],
 		},
 		{
@@ -144,27 +178,34 @@ describe("ReceivableCollection.allocatePayment()", (): void => {
 			collection: emptyReceivableCollection.with(givenInvoice),
 			payment: givenInvoicePartialPayment,
 			allocatedAt: new Timestamp(2),
-			expected: new AggregateCommandOutput<ReceivableCollection<Invoice>, PaymentAllocatedToReceivable>(
-				emptyReceivableCollection.with(givenInvoiceWithPartialPayment),
-				[
-					new PaymentAllocatedToReceivable(
-						paymentAllocatedAt,
-						new PaymentId("1"),
-						givenInvoice.id,
-						givenInvoice.customerAccountId,
-						givenInvoicePartialPayment.amount,
-					),
-				],
-			),
+			expected: new AggregateCommandOutput<
+				ReceivableCollection<Invoice>,
+				PaymentAllocatedToReceivable
+			>(emptyReceivableCollection.with(givenInvoiceWithPartialPayment), [
+				new PaymentAllocatedToReceivable(
+					paymentAllocatedAt,
+					new PaymentId("1"),
+					givenInvoice.id,
+					givenInvoice.customerAccountId,
+					givenInvoicePartialPayment.amount,
+				),
+			]),
 			expectedAllocatedAmounts: [9999],
 		},
 		{
 			name: "overpayment",
-			collection: emptyReceivableCollection.with(givenInvoice).with(anotherInvoice),
+			collection: emptyReceivableCollection
+				.with(givenInvoice)
+				.with(anotherInvoice),
 			payment: overPayment,
 			allocatedAt: new Timestamp(2),
-			expected: new AggregateCommandOutput<ReceivableCollection<Invoice>, PaymentAllocatedToReceivable>(
-				emptyReceivableCollection.with(givenInvoiceWithFullPayment).with(anotherInvoiceWithFullPayment),
+			expected: new AggregateCommandOutput<
+				ReceivableCollection<Invoice>,
+				PaymentAllocatedToReceivable
+			>(
+				emptyReceivableCollection
+					.with(givenInvoiceWithFullPayment)
+					.with(anotherInvoiceWithFullPayment),
 				[
 					new PaymentAllocatedToReceivable(
 						paymentAllocatedAt,
@@ -188,19 +229,33 @@ describe("ReceivableCollection.allocatePayment()", (): void => {
 
 	scenarios.forEach((scenario: ScenarioForAllocatePayment) => {
 		it(`contains: ${scenario.name}`, () => {
-			const actual = scenario.collection.allocatePayment(scenario.payment, scenario.allocatedAt)
+			const actual = scenario.collection.allocatePayment(
+				scenario.payment,
+				scenario.allocatedAt,
+			)
 
 			// p.s. JSON serializing includes only static properties
 			// therefore removing functions, which is expected for this comparison.
 			const rawActual = JSON.parse(JSON.stringify(actual))
 
-			const allocatedAmounts = rawActual.events.map((event: any) => event.amount.cents)
+			const allocatedAmounts = rawActual.events.map(
+				(event: any) => event.amount.cents,
+			)
 
-			assert.deepStrictEqual(allocatedAmounts, scenario.expectedAllocatedAmounts)
+			assert.deepStrictEqual(
+				allocatedAmounts,
+				scenario.expectedAllocatedAmounts,
+			)
 
-			assert.deepStrictEqual(rawActual.aggregate, JSON.parse(JSON.stringify(scenario.expected.aggregate)))
+			assert.deepStrictEqual(
+				rawActual.aggregate,
+				JSON.parse(JSON.stringify(scenario.expected.aggregate)),
+			)
 
-			assert.deepStrictEqual(rawActual.events, JSON.parse(JSON.stringify(scenario.expected.events)))
+			assert.deepStrictEqual(
+				rawActual.events,
+				JSON.parse(JSON.stringify(scenario.expected.events)),
+			)
 		})
 	})
 })
@@ -217,6 +272,9 @@ interface ScenarioForAllocatePayment {
 	collection: ReceivableCollection<Invoice>
 	payment: Payment
 	allocatedAt: Timestamp
-	expected: AggregateCommandOutput<ReceivableCollection<Invoice>, PaymentAllocatedToReceivable>
+	expected: AggregateCommandOutput<
+		ReceivableCollection<Invoice>,
+		PaymentAllocatedToReceivable
+	>
 	expectedAllocatedAmounts: number[]
 }

@@ -21,7 +21,11 @@ describe("ReceivablePaymentCollection", (): void => {
 		{
 			name: "single item",
 			collection: emptyCollection.with(
-				new ReceivablePayment(new Timestamp(123456), new PaymentId("payment-1"), new Money(Currency.EUR, 111)),
+				new ReceivablePayment(
+					new Timestamp(123456),
+					new PaymentId("payment-1"),
+					new Money(Currency.EUR, 111),
+				),
 			),
 			expected: 111,
 		},

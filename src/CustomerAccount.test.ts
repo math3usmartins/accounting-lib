@@ -52,7 +52,11 @@ const givenInvoice = new Invoice(
 describe("CustomerAccount.fromEvents()", (): void => {
 	it("ReceivableAddedToCustomerAccount", () => {
 		const actual = CustomerAccount.fromEvents(givenCustomerAccountId, [
-			new ReceivableAddedToCustomerAccount(givenInvoice, givenCustomerAccountId, new Timestamp(332211)),
+			new ReceivableAddedToCustomerAccount(
+				givenInvoice,
+				givenCustomerAccountId,
+				new Timestamp(332211),
+			),
 		])
 
 		assert.deepStrictEqual(actual.id.value, givenCustomerAccountId.value)
@@ -84,11 +88,17 @@ describe("CustomerAccount.allocateReceivable()", (): void => {
 			expectedAggregate: new CustomerAccount(
 				givenCustomerAccountId,
 				new CustomerAccountVersion(2),
-				new ReceivableCollection<Invoice>(givenCustomerAccountId, [givenInvoice]),
+				new ReceivableCollection<Invoice>(givenCustomerAccountId, [
+					givenInvoice,
+				]),
 				new PaymentCollection([]),
 			),
 			expectedEvents: [
-				new ReceivableAddedToCustomerAccount(givenInvoice, givenCustomerAccountId, new Timestamp(332211)),
+				new ReceivableAddedToCustomerAccount(
+					givenInvoice,
+					givenCustomerAccountId,
+					new Timestamp(332211),
+				),
 			],
 		},
 		{
@@ -101,13 +111,21 @@ describe("CustomerAccount.allocateReceivable()", (): void => {
 				new CustomerAccountVersion(4),
 				new ReceivableCollection<Invoice>(givenCustomerAccountId, [
 					givenInvoice.allocatePayment(
-						new ReceivablePayment(new Timestamp(332211), givenCustomerPayment.id, givenInvoice.amount),
+						new ReceivablePayment(
+							new Timestamp(332211),
+							givenCustomerPayment.id,
+							givenInvoice.amount,
+						),
 					).aggregate,
 				]),
 				new PaymentCollection([givenCustomerPayment]),
 			),
 			expectedEvents: [
-				new ReceivableAddedToCustomerAccount(givenInvoice, givenCustomerAccountId, new Timestamp(332211)),
+				new ReceivableAddedToCustomerAccount(
+					givenInvoice,
+					givenCustomerAccountId,
+					new Timestamp(332211),
+				),
 				new PaymentAllocatedToReceivable(
 					new Timestamp(332211),
 					givenCustomerPayment.id,
@@ -121,16 +139,23 @@ describe("CustomerAccount.allocateReceivable()", (): void => {
 
 	scenarios.forEach((scenario: ScenarioToAllocateReceivable) => {
 		it(scenario.name, () => {
-			const actual = scenario.customerAccount.allocateReceivable(scenario.receivable, scenario.dateTime)
+			const actual = scenario.customerAccount.allocateReceivable(
+				scenario.receivable,
+				scenario.dateTime,
+			)
 
 			// p.s. JSON serializing includes only static properties
 			// therefore removing functions, which is expected for this comparison.
 			const rawActual = JSON.parse(JSON.stringify(actual))
 
-			const rawExpectedAggregate = JSON.parse(JSON.stringify(scenario.expectedAggregate))
+			const rawExpectedAggregate = JSON.parse(
+				JSON.stringify(scenario.expectedAggregate),
+			)
 			assert.deepStrictEqual(rawActual.aggregate, rawExpectedAggregate)
 
-			const rawExpectedEvents = JSON.parse(JSON.stringify(scenario.expectedEvents))
+			const rawExpectedEvents = JSON.parse(
+				JSON.stringify(scenario.expectedEvents),
+			)
 			assert.deepStrictEqual(rawActual.events, rawExpectedEvents)
 		})
 	})
@@ -143,6 +168,8 @@ interface ScenarioToAllocateReceivable {
 	dateTime: Timestamp
 	expectedAggregate: CustomerAccount
 	expectedEvents: Array<
-		PaymentAllocatedToReceivable | PaymentAddedToCustomerAccount | ReceivableAddedToCustomerAccount
+		| PaymentAllocatedToReceivable
+		| PaymentAddedToCustomerAccount
+		| ReceivableAddedToCustomerAccount
 	>
 }

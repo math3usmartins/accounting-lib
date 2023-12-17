@@ -4,7 +4,9 @@ import { PaymentAllocatedToReceivable } from "./Event/PaymentAllocatedToReceivab
 import { type ReceivablePayment } from "./Payment/ReceivablePayment"
 
 export class Invoice extends AbstractReceivable<Invoice> {
-	public allocatePayment(payment: ReceivablePayment): AggregateCommandOutput<Invoice, PaymentAllocatedToReceivable> {
+	public allocatePayment(
+		payment: ReceivablePayment,
+	): AggregateCommandOutput<Invoice, PaymentAllocatedToReceivable> {
 		return new AggregateCommandOutput(
 			new Invoice(
 				this.dateTime,

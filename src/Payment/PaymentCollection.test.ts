@@ -16,9 +16,17 @@ describe("PaymentCollection", (): void => {
 		expected: boolean
 	}
 
-	const givenPayment = new Payment(new PaymentId("1"), new Timestamp(11), new Money(Currency.EUR, 111))
+	const givenPayment = new Payment(
+		new PaymentId("1"),
+		new Timestamp(11),
+		new Money(Currency.EUR, 111),
+	)
 
-	const anotherPayment = new Payment(new PaymentId("2"), new Timestamp(22), new Money(Currency.EUR, 222))
+	const anotherPayment = new Payment(
+		new PaymentId("2"),
+		new Timestamp(22),
+		new Money(Currency.EUR, 222),
+	)
 
 	const scenariosToTestContains: ScenarioToTestContains[] = [
 		{

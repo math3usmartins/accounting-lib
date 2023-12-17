@@ -6,9 +6,11 @@ export class Money {
 		public readonly cents: number,
 	) {}
 
-	public add = (cents: number): Money => new Money(this.currency, this.cents + cents)
+	public add = (cents: number): Money =>
+		new Money(this.currency, this.cents + cents)
 
-	public subtract = (cents: number): Money => new Money(this.currency, this.cents - cents)
+	public subtract = (cents: number): Money =>
+		new Money(this.currency, this.cents - cents)
 
 	public deductible(another: Money): Money {
 		if (another.currency !== this.currency) {

@@ -12,7 +12,10 @@ import { PaymentId } from "../Payment/PaymentId"
 
 describe("Invoice", (): void => {
 	const givenInvoiceId = new ReceivableId("receivable-1")
-	const emptyPaymentCollection = new ReceivablePaymentCollection(givenInvoiceId, [])
+	const emptyPaymentCollection = new ReceivablePaymentCollection(
+		givenInvoiceId,
+		[],
+	)
 	const givenInvoice = new Invoice(
 		new Timestamp(123456),
 		givenInvoiceId,
@@ -33,7 +36,11 @@ describe("Invoice", (): void => {
 		{
 			name: "fully paid through single payment",
 			invoice: givenInvoice.allocatePayment(
-				new ReceivablePayment(givenInvoice.dateTime, new PaymentId("payment-1"), givenInvoice.amount),
+				new ReceivablePayment(
+					givenInvoice.dateTime,
+					new PaymentId("payment-1"),
+					givenInvoice.amount,
+				),
 			).aggregate,
 			expectedIsPaid: true,
 			expectedIsWrittenOff: false,
@@ -63,7 +70,11 @@ describe("Invoice", (): void => {
 		{
 			name: "partially paid through single payment",
 			invoice: givenInvoice.allocatePayment(
-				new ReceivablePayment(givenInvoice.dateTime, new PaymentId("payment-1"), new Money(Currency.EUR, 100)),
+				new ReceivablePayment(
+					givenInvoice.dateTime,
+					new PaymentId("payment-1"),
+					new Money(Currency.EUR, 100),
+				),
 			).aggregate,
 			expectedIsPaid: false,
 			expectedIsWrittenOff: false,
@@ -95,9 +106,18 @@ describe("Invoice", (): void => {
 	invoiceStateScenarios.forEach((scenario: InvoiceStateScenario) => {
 		it(`state: ${scenario.name}`, () => {
 			assert.equal(scenario.invoice.isPaid(), scenario.expectedIsPaid)
-			assert.equal(scenario.invoice.isWrittenOff(), scenario.expectedIsWrittenOff)
-			assert.equal(scenario.invoice.pendingAmount().cents, scenario.expectedPendingAmount.cents)
-			assert.equal(scenario.invoice.pendingAmount().currency, scenario.expectedPendingAmount.currency)
+			assert.equal(
+				scenario.invoice.isWrittenOff(),
+				scenario.expectedIsWrittenOff,
+			)
+			assert.equal(
+				scenario.invoice.pendingAmount().cents,
+				scenario.expectedPendingAmount.cents,
+			)
+			assert.equal(
+				scenario.invoice.pendingAmount().currency,
+				scenario.expectedPendingAmount.currency,
+			)
 		})
 	})
 })

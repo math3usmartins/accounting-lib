@@ -16,5 +16,7 @@ export interface Receivable<Type> {
 	isPaid: () => boolean
 	isWrittenOff: () => boolean
 	pendingAmount: () => Money
-	allocatePayment: (payment: ReceivablePayment) => AggregateCommandOutput<Type, PaymentAllocatedToReceivable>
+	allocatePayment: (
+		payment: ReceivablePayment,
+	) => AggregateCommandOutput<Type, PaymentAllocatedToReceivable>
 }

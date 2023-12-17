@@ -23,10 +23,12 @@ export abstract class AbstractReceivable<Type> implements Receivable<Type> {
 	) {}
 
 	// IMPORTANT: written-off is NOT paid despite any payment amount.
-	public isPaid = (): boolean => !this._isWrittenOff && this.payments.total() >= this.amount.cents
+	public isPaid = (): boolean =>
+		!this._isWrittenOff && this.payments.total() >= this.amount.cents
 
 	public isWrittenOff = (): boolean => this._isWrittenOff
 
 	// IMPORTANT: this may INTENTIONALLY return negative values (overpayment)
-	public pendingAmount = (): Money => this.amount.subtract(this.payments.total())
+	public pendingAmount = (): Money =>
+		this.amount.subtract(this.payments.total())
 }
