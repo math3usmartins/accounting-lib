@@ -76,16 +76,12 @@ describe("ReceivableCollection.contains()", (): void => {
 })
 
 describe("ReceivableCollection.with()", () => {
-	it("must reject including already existing receivable", () => {
-		let failed = false
+	// ensure such uniqueness validation is NOT done by the collection itself
+	it("must accept including already existing receivable", () => {
+		emptyReceivableCollection.with(givenInvoice).with(givenInvoice)
 
-		try {
-			emptyReceivableCollection.with(givenInvoice).with(givenInvoice)
-		} catch (e) {
-			failed = true
-		}
-
-		assert.equal(failed, true)
+		// i.e. ensure it did reach this point without errors
+		assert.equal(true, true)
 	})
 })
 

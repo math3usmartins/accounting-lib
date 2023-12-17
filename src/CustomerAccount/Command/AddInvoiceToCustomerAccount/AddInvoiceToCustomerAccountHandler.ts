@@ -4,7 +4,7 @@ import { type CustomerAccountEvent } from "../../CustomerAccountEvent"
 import { type CustomerAccountRepository } from "../../CustomerAccountRepository"
 import { type AddInvoiceToCustomerAccount } from "./AddInvoiceToCustomerAccount"
 
-export class ReceivePaymentHandler {
+export class AddInvoiceToCustomerAccountHandler {
 	constructor(
 		private readonly eventStore: EventStore<CustomerAccountEvent>,
 		private readonly customerAccountRepository: CustomerAccountRepository,

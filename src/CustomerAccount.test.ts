@@ -19,6 +19,8 @@ import { Payment } from "./Payment"
 import { PaymentId } from "./Payment/PaymentId"
 import { ReceivablePayment } from "./Receivable/Payment/ReceivablePayment"
 import { CustomerAccountVersion } from "./CustomerAccount/CustomerAccountVersion"
+import { ReceivableAlreadyAllocatedError } from "./CustomerAccount/Error/ReceivableAlreadyAllocatedError"
+import { CustomerAccountEvent } from "./CustomerAccount/CustomerAccountEvent"
 
 const givenCustomerAccountId = new CustomerAccountId("customer-1")
 const givenCustomerAccount = new CustomerAccount(
@@ -85,6 +87,7 @@ describe("CustomerAccount.allocateReceivable()", (): void => {
 			customerAccount: givenCustomerAccount,
 			receivable: givenInvoice,
 			dateTime: new Timestamp(332211),
+			expectedError: null,
 			expectedAggregate: new CustomerAccount(
 				givenCustomerAccountId,
 				new CustomerAccountVersion(2),
@@ -106,9 +109,10 @@ describe("CustomerAccount.allocateReceivable()", (): void => {
 			customerAccount: givenCustomerAccountWithPayment,
 			receivable: givenInvoice,
 			dateTime: new Timestamp(332211),
+			expectedError: null,
 			expectedAggregate: new CustomerAccount(
 				givenCustomerAccountId,
-				new CustomerAccountVersion(4),
+				new CustomerAccountVersion(3),
 				new ReceivableCollection<Invoice>(givenCustomerAccountId, [
 					givenInvoice.allocatePayment(
 						new ReceivablePayment(
@@ -135,14 +139,52 @@ describe("CustomerAccount.allocateReceivable()", (): void => {
 				),
 			],
 		},
+		{
+			name: "fail to allocate same invoice again",
+			customerAccount: givenCustomerAccount.allocateReceivable(
+				givenInvoice,
+				new Timestamp(332211),
+			).aggregate,
+			receivable: givenInvoice,
+			dateTime: new Timestamp(332211),
+			expectedError:
+				ReceivableAlreadyAllocatedError.fromInvoice(givenInvoice),
+			expectedAggregate: new CustomerAccount(
+				givenCustomerAccountId,
+				new CustomerAccountVersion(2),
+				new ReceivableCollection<Invoice>(givenCustomerAccountId, [
+					givenInvoice,
+				]),
+				new PaymentCollection([]),
+			),
+			expectedEvents: [
+				new ReceivableAddedToCustomerAccount(
+					givenInvoice,
+					givenCustomerAccountId,
+					new Timestamp(332211),
+				),
+			],
+		},
 	]
 
 	scenarios.forEach((scenario: ScenarioToAllocateReceivable) => {
 		it(scenario.name, () => {
-			const actual = scenario.customerAccount.allocateReceivable(
-				scenario.receivable,
-				scenario.dateTime,
-			)
+			let actual
+			let events: CustomerAccountEvent[] = []
+
+			try {
+				actual = scenario.customerAccount.allocateReceivable(
+					scenario.receivable,
+					scenario.dateTime,
+				)
+			} catch (actualError) {
+				if (scenario.expectedError) {
+					assert.deepStrictEqual(actualError, scenario.expectedError)
+					return
+				} else {
+					throw actualError
+				}
+			}
 
 			// p.s. JSON serializing includes only static properties
 			// therefore removing functions, which is expected for this comparison.
@@ -166,6 +208,7 @@ interface ScenarioToAllocateReceivable {
 	customerAccount: CustomerAccount
 	receivable: Receivable<Invoice>
 	dateTime: Timestamp
+	expectedError: Error | null
 	expectedAggregate: CustomerAccount
 	expectedEvents: Array<
 		| PaymentAllocatedToReceivable

@@ -10,6 +10,7 @@ import { ReceivableAddedToCustomerAccount } from "./CustomerAccount/Event/Receiv
 import { type CustomerAccountEvent } from "./CustomerAccount/CustomerAccountEvent"
 import { type Invoice } from "./Receivable/Invoice"
 import { CustomerAccountVersion } from "./CustomerAccount/CustomerAccountVersion"
+import { ReceivableAlreadyAllocatedError } from "./CustomerAccount/Error/ReceivableAlreadyAllocatedError"
 
 type CustomerAccountAggregateCommandOutput = AggregateCommandOutput<
 	CustomerAccount,
@@ -23,6 +24,15 @@ export class CustomerAccount {
 		private readonly receivables: ReceivableCollection<Invoice>,
 		private readonly payments: PaymentCollection,
 	) {}
+
+	public static initial(id: CustomerAccountId): CustomerAccount {
+		return new CustomerAccount(
+			id,
+			new CustomerAccountVersion(1),
+			new ReceivableCollection(id, []),
+			new PaymentCollection([]),
+		)
+	}
 
 	public static fromEvents(
 		id: CustomerAccountId,
@@ -38,20 +48,13 @@ export class CustomerAccount {
 				}
 
 				if (event instanceof ReceivableAddedToCustomerAccount) {
-					return account.allocateReceivable(
-						event.receivable,
-						event.dateTime,
-					).aggregate
+					return account.onReceivableAddedToCustomerAccount(event)
+						.aggregate
 				}
 
 				throw new Error("Event not supported" + event.constructor.name)
 			},
-			new CustomerAccount(
-				id,
-				new CustomerAccountVersion(1),
-				new ReceivableCollection(id, []),
-				new PaymentCollection([]),
-			),
+			CustomerAccount.initial(id),
 		)
 	}
 
@@ -59,20 +62,20 @@ export class CustomerAccount {
 		receivable: Receivable<Invoice>,
 		dateTime: Timestamp,
 	): CustomerAccountAggregateCommandOutput {
-		const customerWithReceivable = new CustomerAccount(
+		if (this.receivables.contains(receivable)) {
+			throw ReceivableAlreadyAllocatedError.fromInvoice(receivable)
+		}
+
+		const event = new ReceivableAddedToCustomerAccount(
+			receivable,
 			this.id,
-			this.version.next(),
-			this.receivables.with(receivable),
-			this.payments,
+			dateTime,
 		)
 
-		const allocateAvailablePayments =
-			customerWithReceivable.allocateAvailablePayments(dateTime)
+		const { aggregate, events } =
+			this.onReceivableAddedToCustomerAccount(event)
 
-		return new AggregateCommandOutput(allocateAvailablePayments.aggregate, [
-			new ReceivableAddedToCustomerAccount(receivable, this.id, dateTime),
-			...allocateAvailablePayments.events,
-		])
+		return new AggregateCommandOutput(aggregate, [event, ...events])
 	}
 
 	public allocatePayment(
@@ -103,6 +106,19 @@ export class CustomerAccount {
 		)
 	}
 
+	private onReceivableAddedToCustomerAccount(
+		event: ReceivableAddedToCustomerAccount,
+	): CustomerAccountAggregateCommandOutput {
+		const customerWithReceivable = new CustomerAccount(
+			event.customerAccountId,
+			this.version.next(),
+			this.receivables.with(event.receivable),
+			this.payments,
+		)
+
+		return customerWithReceivable.allocateAvailablePayments(event.dateTime)
+	}
+
 	private allocateAvailablePayments(
 		dateTime: Timestamp,
 	): CustomerAccountAggregateCommandOutput {
@@ -119,7 +135,7 @@ export class CustomerAccount {
 
 				const customerWithAllocatedPayments = new CustomerAccount(
 					this.id,
-					this.version.next(),
+					this.version,
 					receivablesAllocationOutput.aggregate,
 					this.payments,
 				)
