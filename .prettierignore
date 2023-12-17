@@ -1,0 +1,5 @@
+**/.git
+dist
+coverage
+reports
+node_modules

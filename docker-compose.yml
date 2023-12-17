@@ -1,0 +1,10 @@
+version: "2.3"
+
+services:
+    app:
+        image: node:alpine
+        user: node
+        working_dir: /opt/app
+        command: '/bin/sh -c "while sleep 1000; do :; done"'
+        volumes:
+            - ./:/opt/app
