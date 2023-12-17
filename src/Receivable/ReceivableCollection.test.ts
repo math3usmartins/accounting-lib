@@ -80,11 +80,7 @@ describe("ReceivableCollection.with()", () => {
 })
 
 describe("ReceivableCollection.allocatePayment()", (): void => {
-	const givenInvoiceFullPayment = new Payment(
-		new PaymentId("1"),
-		new Timestamp(1),
-		givenInvoice.amount,
-	)
+	const givenInvoiceFullPayment = new Payment(new PaymentId("1"), new Timestamp(1), givenInvoice.amount)
 
 	const givenInvoiceWithFullPayment = givenInvoice.allocatePayment(
 		new ReceivablePayment(
@@ -113,11 +109,7 @@ describe("ReceivableCollection.allocatePayment()", (): void => {
 		new Timestamp(1),
 		givenInvoice.amount.add(anotherInvoice.amount.cents).add(1),
 	)
-	const anotherInvoiceFullPayment = new Payment(
-		new PaymentId("1"),
-		new Timestamp(1),
-		anotherInvoice.amount,
-	)
+	const anotherInvoiceFullPayment = new Payment(new PaymentId("1"), new Timestamp(1), anotherInvoice.amount)
 
 	const anotherInvoiceWithFullPayment = anotherInvoice.allocatePayment(
 		new ReceivablePayment(
@@ -131,11 +123,7 @@ describe("ReceivableCollection.allocatePayment()", (): void => {
 		{
 			name: "empty collection",
 			collection: emptyReceivableCollection,
-			payment: new Payment(
-				new PaymentId("1"),
-				new Timestamp(1),
-				new Money(Currency.EUR, 10000),
-			),
+			payment: new Payment(new PaymentId("1"), new Timestamp(1), new Money(Currency.EUR, 10000)),
 			expected: new AggregateCommandOutput<ReceivableCollection<Invoice>, PaymentAllocatedToReceivable>(
 				emptyReceivableCollection,
 				[],
