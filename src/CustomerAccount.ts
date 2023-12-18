@@ -4,7 +4,7 @@ import { type Receivable } from "./Receivable"
 import { type Payment } from "./Payment"
 import { type Timestamp } from "./Timestamp"
 import { PaymentCollection } from "./Payment/PaymentCollection"
-import { AggregateCommandOutput } from "./AggregateCommandOutput"
+import { Mutation } from "./Mutation"
 import { PaymentAddedToCustomerAccount } from "./CustomerAccount/Event/PaymentAddedToCustomerAccount"
 import { ReceivableAddedToCustomerAccount } from "./CustomerAccount/Event/ReceivableAddedToCustomerAccount"
 import { type CustomerAccountEvent } from "./CustomerAccount/CustomerAccountEvent"
@@ -12,10 +12,7 @@ import { type Invoice } from "./Receivable/Invoice"
 import { CustomerAccountVersion } from "./CustomerAccount/CustomerAccountVersion"
 import { ReceivableAlreadyAllocatedError } from "./CustomerAccount/Error/ReceivableAlreadyAllocatedError"
 
-type CustomerAccountAggregateCommandOutput = AggregateCommandOutput<
-	CustomerAccount,
-	CustomerAccountEvent
->
+type CustomerAccountMutation = Mutation<CustomerAccount, CustomerAccountEvent>
 
 export class CustomerAccount {
 	constructor(
@@ -44,12 +41,12 @@ export class CustomerAccount {
 					return account.allocatePayment(
 						event.payment,
 						event.dateTime,
-					).aggregate
+					).mutant
 				}
 
 				if (event instanceof ReceivableAddedToCustomerAccount) {
 					return account.onReceivableAddedToCustomerAccount(event)
-						.aggregate
+						.mutant
 				}
 
 				throw new Error("Event not supported" + event.constructor.name)
@@ -61,7 +58,7 @@ export class CustomerAccount {
 	public allocateReceivable(
 		receivable: Receivable<Invoice>,
 		dateTime: Timestamp,
-	): CustomerAccountAggregateCommandOutput {
+	): CustomerAccountMutation {
 		if (this.receivables.contains(receivable)) {
 			throw ReceivableAlreadyAllocatedError.fromInvoice(receivable)
 		}
@@ -72,27 +69,27 @@ export class CustomerAccount {
 			dateTime,
 		)
 
-		const { aggregate, events } =
+		const { mutant, events } =
 			this.onReceivableAddedToCustomerAccount(event)
 
-		return new AggregateCommandOutput(aggregate, [event, ...events])
+		return new Mutation(mutant, [event, ...events])
 	}
 
 	public allocatePayment(
 		payment: Payment,
 		dateTime: Timestamp,
-	): CustomerAccountAggregateCommandOutput {
+	): CustomerAccountMutation {
 		const payments = this.payments.with(payment)
-		const receivablesAllocation = this.receivables.allocatePayment(
+		const receivablesMutation = this.receivables.allocatePayment(
 			payment,
 			dateTime,
 		)
 
-		return new AggregateCommandOutput(
+		return new Mutation(
 			new CustomerAccount(
 				this.id,
 				this.version.next(),
-				receivablesAllocation.aggregate,
+				receivablesMutation.mutant,
 				payments,
 			),
 			[
@@ -101,14 +98,14 @@ export class CustomerAccount {
 					this.id,
 					payment.dateTime,
 				),
-				...receivablesAllocation.events,
+				...receivablesMutation.events,
 			],
 		)
 	}
 
 	private onReceivableAddedToCustomerAccount(
 		event: ReceivableAddedToCustomerAccount,
-	): CustomerAccountAggregateCommandOutput {
+	): CustomerAccountMutation {
 		const customerWithReceivable = new CustomerAccount(
 			event.customerAccountId,
 			this.version.next(),
@@ -121,31 +118,25 @@ export class CustomerAccount {
 
 	private allocateAvailablePayments(
 		dateTime: Timestamp,
-	): CustomerAccountAggregateCommandOutput {
+	): CustomerAccountMutation {
 		return this.payments.items().reduce(
-			(
-				carry: CustomerAccountAggregateCommandOutput,
-				payment: Payment,
-			) => {
+			(carry: CustomerAccountMutation, payment: Payment) => {
 				const receivablesAllocationOutput =
-					carry.aggregate.receivables.allocatePayment(
-						payment,
-						dateTime,
-					)
+					carry.mutant.receivables.allocatePayment(payment, dateTime)
 
 				const customerWithAllocatedPayments = new CustomerAccount(
 					this.id,
 					this.version,
-					receivablesAllocationOutput.aggregate,
+					receivablesAllocationOutput.mutant,
 					this.payments,
 				)
 
-				return new AggregateCommandOutput(
-					customerWithAllocatedPayments,
-					[...carry.events, ...receivablesAllocationOutput.events],
-				)
+				return new Mutation(customerWithAllocatedPayments, [
+					...carry.events,
+					...receivablesAllocationOutput.events,
+				])
 			},
-			new AggregateCommandOutput(this, []),
+			new Mutation(this, []),
 		)
 	}
 }

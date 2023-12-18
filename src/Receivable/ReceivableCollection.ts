@@ -1,12 +1,12 @@
 import { type Receivable } from "../Receivable"
 import { type Payment } from "../Payment"
 import { ReceivablePayment } from "./Payment/ReceivablePayment"
-import { AggregateCommandOutput } from "../AggregateCommandOutput"
+import { Mutation } from "../Mutation"
 import { type CustomerAccountId } from "../CustomerAccount/CustomerAccountId"
 import { type PaymentAllocatedToReceivable } from "./Event/PaymentAllocatedToReceivable"
 import { type Timestamp } from "../Timestamp"
 
-type AllocatePaymentOutput<Type> = AggregateCommandOutput<
+type AllocatePaymentMutation<Type> = Mutation<
 	ReceivableCollection<Type>,
 	PaymentAllocatedToReceivable
 >
@@ -47,7 +47,7 @@ export class ReceivableCollection<Type> {
 	public allocatePayment(
 		payment: Payment,
 		dateTime: Timestamp,
-	): AllocatePaymentOutput<Type> {
+	): AllocatePaymentMutation<Type> {
 		let remainingAmount = payment.amount
 		const events: PaymentAllocatedToReceivable[] = []
 
@@ -69,11 +69,11 @@ export class ReceivableCollection<Type> {
 
 				events.push(...allocatePaymentOutput.events)
 
-				return allocatePaymentOutput.aggregate as Receivable<Type>
+				return allocatePaymentOutput.mutant as Receivable<Type>
 			},
 		)
 
-		return new AggregateCommandOutput(
+		return new Mutation(
 			new ReceivableCollection(this.customerAccountId, receivables),
 			events,
 		)

@@ -41,7 +41,7 @@ describe("Invoice", (): void => {
 					new PaymentId("payment-1"),
 					givenInvoice.amount,
 				),
-			).aggregate,
+			).mutant,
 			expectedIsPaid: true,
 			expectedIsWrittenOff: false,
 			expectedPendingAmount: givenInvoice.amount.zero(),
@@ -56,13 +56,13 @@ describe("Invoice", (): void => {
 						new Money(Currency.EUR, 9000),
 					),
 				)
-				.aggregate.allocatePayment(
+				.mutant.allocatePayment(
 					new ReceivablePayment(
 						givenInvoice.dateTime,
 						new PaymentId("payment-2"),
 						new Money(Currency.EUR, 1000),
 					),
-				).aggregate,
+				).mutant,
 			expectedIsPaid: true,
 			expectedIsWrittenOff: false,
 			expectedPendingAmount: givenInvoice.amount.zero(),
@@ -75,7 +75,7 @@ describe("Invoice", (): void => {
 					new PaymentId("payment-1"),
 					new Money(Currency.EUR, 100),
 				),
-			).aggregate,
+			).mutant,
 			expectedIsPaid: false,
 			expectedIsWrittenOff: false,
 			expectedPendingAmount: new Money(Currency.EUR, 9900),
@@ -90,13 +90,13 @@ describe("Invoice", (): void => {
 						new Money(Currency.EUR, 100),
 					),
 				)
-				.aggregate.allocatePayment(
+				.mutant.allocatePayment(
 					new ReceivablePayment(
 						givenInvoice.dateTime,
 						new PaymentId("payment-2"),
 						new Money(Currency.EUR, 100),
 					),
-				).aggregate,
+				).mutant,
 			expectedIsPaid: false,
 			expectedIsWrittenOff: false,
 			expectedPendingAmount: new Money(Currency.EUR, 9800),

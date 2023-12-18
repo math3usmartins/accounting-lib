@@ -5,13 +5,13 @@ import { type Receivable } from "../Receivable"
 import { type ReceivablePaymentCollection } from "./Payment/ReceivablePaymentCollection"
 import { type Money } from "../Money"
 import { type ReceivablePayment } from "./Payment/ReceivablePayment"
-import { type AggregateCommandOutput } from "../AggregateCommandOutput"
+import { type Mutation } from "../Mutation"
 import { type PaymentAllocatedToReceivable } from "./Event/PaymentAllocatedToReceivable"
 
 export abstract class AbstractReceivable<Type> implements Receivable<Type> {
 	public abstract allocatePayment(
 		payment: ReceivablePayment,
-	): AggregateCommandOutput<Type, PaymentAllocatedToReceivable>
+	): Mutation<Type, PaymentAllocatedToReceivable>
 
 	constructor(
 		public readonly dateTime: Timestamp,

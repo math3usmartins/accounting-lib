@@ -8,7 +8,7 @@ import { Currency } from "../Currency"
 import { Invoice } from "./Invoice"
 import { CustomerAccountId } from "../CustomerAccount/CustomerAccountId"
 import { ReceivableCollection } from "./ReceivableCollection"
-import { AggregateCommandOutput } from "../AggregateCommandOutput"
+import { Mutation } from "../Mutation"
 import { PaymentAllocatedToReceivable } from "./Event/PaymentAllocatedToReceivable"
 import { Payment } from "../Payment"
 import { PaymentId } from "../Payment/PaymentId"
@@ -99,7 +99,7 @@ describe("ReceivableCollection.allocatePayment()", (): void => {
 			givenInvoiceFullPayment.id,
 			givenInvoiceFullPayment.amount,
 		),
-	).aggregate
+	).mutant
 
 	const givenInvoicePartialPayment = new Payment(
 		new PaymentId("1"),
@@ -113,7 +113,7 @@ describe("ReceivableCollection.allocatePayment()", (): void => {
 			givenInvoicePartialPayment.id,
 			givenInvoicePartialPayment.amount,
 		),
-	).aggregate
+	).mutant
 
 	const overPayment = new Payment(
 		new PaymentId("1"),
@@ -132,7 +132,7 @@ describe("ReceivableCollection.allocatePayment()", (): void => {
 			anotherInvoiceFullPayment.id,
 			anotherInvoiceFullPayment.amount,
 		),
-	).aggregate
+	).mutant
 
 	const scenarios: ScenarioForAllocatePayment[] = [
 		{
@@ -144,7 +144,7 @@ describe("ReceivableCollection.allocatePayment()", (): void => {
 				new Money(Currency.EUR, 10000),
 			),
 			allocatedAt: new Timestamp(2),
-			expected: new AggregateCommandOutput<
+			expected: new Mutation<
 				ReceivableCollection<Invoice>,
 				PaymentAllocatedToReceivable
 			>(emptyReceivableCollection, []),
@@ -155,7 +155,7 @@ describe("ReceivableCollection.allocatePayment()", (): void => {
 			collection: emptyReceivableCollection.with(givenInvoice),
 			payment: givenInvoiceFullPayment,
 			allocatedAt: new Timestamp(2),
-			expected: new AggregateCommandOutput<
+			expected: new Mutation<
 				ReceivableCollection<Invoice>,
 				PaymentAllocatedToReceivable
 			>(emptyReceivableCollection.with(givenInvoiceWithFullPayment), [
@@ -174,7 +174,7 @@ describe("ReceivableCollection.allocatePayment()", (): void => {
 			collection: emptyReceivableCollection.with(givenInvoice),
 			payment: givenInvoicePartialPayment,
 			allocatedAt: new Timestamp(2),
-			expected: new AggregateCommandOutput<
+			expected: new Mutation<
 				ReceivableCollection<Invoice>,
 				PaymentAllocatedToReceivable
 			>(emptyReceivableCollection.with(givenInvoiceWithPartialPayment), [
@@ -195,7 +195,7 @@ describe("ReceivableCollection.allocatePayment()", (): void => {
 				.with(anotherInvoice),
 			payment: overPayment,
 			allocatedAt: new Timestamp(2),
-			expected: new AggregateCommandOutput<
+			expected: new Mutation<
 				ReceivableCollection<Invoice>,
 				PaymentAllocatedToReceivable
 			>(
@@ -244,8 +244,8 @@ describe("ReceivableCollection.allocatePayment()", (): void => {
 			)
 
 			assert.deepStrictEqual(
-				rawActual.aggregate,
-				JSON.parse(JSON.stringify(scenario.expected.aggregate)),
+				rawActual.mutant,
+				JSON.parse(JSON.stringify(scenario.expected.mutant)),
 			)
 
 			assert.deepStrictEqual(
@@ -268,7 +268,7 @@ interface ScenarioForAllocatePayment {
 	collection: ReceivableCollection<Invoice>
 	payment: Payment
 	allocatedAt: Timestamp
-	expected: AggregateCommandOutput<
+	expected: Mutation<
 		ReceivableCollection<Invoice>,
 		PaymentAllocatedToReceivable
 	>

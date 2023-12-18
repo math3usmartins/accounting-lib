@@ -58,7 +58,7 @@ describe("AddInvoiceToCustomerAccountHandler", () => {
 					CustomerAccount.initial(
 						customerAccountId,
 					).allocateReceivable(givenInvoice, new Timestamp(123457))
-						.aggregate,
+						.mutant,
 				]),
 				new InMemoryInvoiceRepository([givenInvoice]),
 			)

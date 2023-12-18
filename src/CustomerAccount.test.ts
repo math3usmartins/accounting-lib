@@ -21,6 +21,7 @@ import { ReceivablePayment } from "./Receivable/Payment/ReceivablePayment"
 import { CustomerAccountVersion } from "./CustomerAccount/CustomerAccountVersion"
 import { ReceivableAlreadyAllocatedError } from "./CustomerAccount/Error/ReceivableAlreadyAllocatedError"
 import { CustomerAccountEvent } from "./CustomerAccount/CustomerAccountEvent"
+import { Mutation } from "./Mutation"
 
 const givenCustomerAccountId = new CustomerAccountId("customer-1")
 const givenCustomerAccount = new CustomerAccount(
@@ -39,7 +40,7 @@ const givenCustomerPayment = new Payment(
 const givenCustomerAccountWithPayment = givenCustomerAccount.allocatePayment(
 	givenCustomerPayment,
 	new Timestamp(123456),
-).aggregate
+).mutant
 
 const givenInvoiceId = new ReceivableId("receivable-1")
 const givenInvoice = new Invoice(
@@ -120,7 +121,7 @@ describe("CustomerAccount.allocateReceivable()", (): void => {
 							givenCustomerPayment.id,
 							givenInvoice.amount,
 						),
-					).aggregate,
+					).mutant,
 				]),
 				new PaymentCollection([givenCustomerPayment]),
 			),
@@ -144,7 +145,7 @@ describe("CustomerAccount.allocateReceivable()", (): void => {
 			customerAccount: givenCustomerAccount.allocateReceivable(
 				givenInvoice,
 				new Timestamp(332211),
-			).aggregate,
+			).mutant,
 			receivable: givenInvoice,
 			dateTime: new Timestamp(332211),
 			expectedError:
@@ -169,8 +170,7 @@ describe("CustomerAccount.allocateReceivable()", (): void => {
 
 	scenarios.forEach((scenario: ScenarioToAllocateReceivable) => {
 		it(scenario.name, () => {
-			let actual
-			let events: CustomerAccountEvent[] = []
+			let actual: Mutation<CustomerAccount, CustomerAccountEvent>
 
 			try {
 				actual = scenario.customerAccount.allocateReceivable(
@@ -193,7 +193,7 @@ describe("CustomerAccount.allocateReceivable()", (): void => {
 			const rawExpectedAggregate = JSON.parse(
 				JSON.stringify(scenario.expectedAggregate),
 			)
-			assert.deepStrictEqual(rawActual.aggregate, rawExpectedAggregate)
+			assert.deepStrictEqual(rawActual.mutant, rawExpectedAggregate)
 
 			const rawExpectedEvents = JSON.parse(
 				JSON.stringify(scenario.expectedEvents),
