@@ -45,10 +45,28 @@ tactical design with events and aggregates.
 
 ## Functional programming: safety
 
-This project also follows the [functional programming][7] paradigm, with mostly
-pure functions and mostly immutable values, avoiding unexpected side effects as
-much as possible. Of course at some point some mutation needs to be done, some
-state needs to be changed, but such mutations are deferred as much as possible.
+This project also applies a little bit of [functional programming][7] paradigm,
+with pure functions and immutable values, avoiding unexpected side effects.
+
+Of course at some point some mutation needs to be done, some state needs to be
+changed, but such mutations are deferred as much as possible.
+
+### Pure error handling
+
+Inspired by the "[Mostly adequate guide to FP in Javascript][8]", functions are
+designed to return `Either<E, A>` -- where `E` is an error type, and `A` is the
+actual result type, in case of success.
+
+### Minimally functional
+
+p.s. this project is not making full use of functional programming. The core
+classes and methods are purely functional, as much as multi-paradigm languages
+like `TypeScript` and `JavaScript` can be. There's much more in FP than
+immutability, pure functions and pure error handling. This project is a basic,
+minimal implementation of FP.
+
+p.s. you can [learn more about pure error handling][9] and `Either<E, A>`
+in a specific chapter of the guide mentioned above.
 
 ### Mutation, mutant and events
 
@@ -83,7 +101,7 @@ TypeScript is a very popular language, therefore more people and companies get
 a chance to understand and experiment event sourcing, domain-driven design and
 functional programming paradigm.
 
-Unfortunately that's not the case for [Haskell][8] or other purely functional
+Unfortunately that's not the case for [Haskell][10] or other purely functional
 programming languages.
 
 [1]: https://www.manning.com/books/grokking-simplicity
@@ -93,4 +111,6 @@ programming languages.
 [5]: https://martinfowler.com/eaaDev/EventSourcing.html
 [6]: https://en.wikipedia.org/wiki/Domain-driven_design
 [7]: https://en.wikipedia.org/wiki/Functional_programming
-[8]: https://en.wikipedia.org/wiki/Haskell
+[8]: https://mostly-adequate.gitbook.io/mostly-adequate-guide
+[9]: https://mostly-adequate.gitbook.io/mostly-adequate-guide/ch08#pure-error-handling
+[10]: https://en.wikipedia.org/wiki/Haskell

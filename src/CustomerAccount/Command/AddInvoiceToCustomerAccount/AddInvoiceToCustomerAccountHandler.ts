@@ -4,6 +4,11 @@ import { type CustomerAccountEvent } from "../../CustomerAccountEvent"
 import { type CustomerAccountRepository } from "../../CustomerAccountRepository"
 import { type AddInvoiceToCustomerAccount } from "./AddInvoiceToCustomerAccount"
 
+import * as fp from "fp-ts/function"
+import * as Apply from "fp-ts/lib/Apply"
+import * as Either from "fp-ts/lib/Either"
+import * as TaskEither from "fp-ts/lib/TaskEither"
+
 export class AddInvoiceToCustomerAccountHandler {
 	constructor(
 		private readonly eventStore: EventStore<CustomerAccountEvent>,
@@ -11,16 +16,30 @@ export class AddInvoiceToCustomerAccountHandler {
 		private readonly invoiceRepository: InvoiceRepository,
 	) {}
 
-	public async handle(command: AddInvoiceToCustomerAccount): Promise<number> {
-		const [account, invoice] = await Promise.all([
-			this.customerAccountRepository.getById(command.customerAccountId),
-			this.invoiceRepository.getById(command.receivableId),
-		])
+	public handle = (command: AddInvoiceToCustomerAccount) =>
+		fp.pipe(
+			this.getCustomerAndInvoice(command),
+			TaskEither.map(({ customerAccount, invoice }) =>
+				customerAccount.allocateReceivable(invoice, command.dateTime),
+			),
+			TaskEither.flatMapEither((allocation) =>
+				fp.pipe(
+					allocation,
+					Either.map((mutation) => {
+						this.eventStore.append(mutation.events)
+						this.eventStore.flush()
 
-		const result = account.allocateReceivable(invoice, command.dateTime)
+						return mutation.mutant
+					}),
+				),
+			),
+		)
 
-		await this.eventStore.append(result.events)
-
-		return await this.eventStore.flush()
-	}
+	private getCustomerAndInvoice = (command: AddInvoiceToCustomerAccount) =>
+		Apply.sequenceS(TaskEither.ApplicativePar)({
+			customerAccount: this.customerAccountRepository.getById(
+				command.customerAccountId,
+			),
+			invoice: this.invoiceRepository.getById(command.receivableId),
+		})
 }

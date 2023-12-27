@@ -7,6 +7,7 @@ import { Currency } from "../Currency"
 import { PaymentId } from "./PaymentId"
 import { Timestamp } from "../Timestamp"
 import { PaymentAlreadyFoundError } from "./Error/PaymentAlreadyFoundError"
+import * as E from "fp-ts/lib/Either"
 
 describe("PaymentCollection", (): void => {
 	const givenPayment = new Payment(
@@ -56,9 +57,14 @@ describe("PaymentCollection", (): void => {
 	describe("with", () => {
 		it("must append to empty collection", () => {
 			const collection = new PaymentCollection([])
+			const result = collection.with(givenPayment)
+
+			if (E.isLeft(result)) {
+				throw result.left
+			}
 
 			assert.deepEqual(
-				collection.with(givenPayment).items(),
+				result.right.items(),
 				new PaymentCollection([givenPayment]).items(),
 			)
 		})
@@ -70,32 +76,27 @@ describe("PaymentCollection", (): void => {
 				anotherPayment,
 			])
 
-			assert.deepEqual(
-				collection.with(anotherPayment).items(),
-				expected.items(),
-			)
+			const result = collection.with(anotherPayment)
+
+			if (E.isLeft(result)) {
+				throw result.left
+			}
+
+			assert.deepEqual(result.right.items(), expected.items())
 		})
 
 		it("must fail to append already found payment", () => {
 			const collection = new PaymentCollection([givenPayment])
+			const result = collection.with(givenPayment)
 
-			try {
-				collection.with(givenPayment)
-
-				assert.equal(false, true, "expected to throw an exception")
-			} catch (err) {
-				const isExpectedErrorType =
-					err instanceof PaymentAlreadyFoundError
-
-				if (!isExpectedErrorType) {
-					throw err
-				}
-
-				assert.deepEqual(
-					err,
-					new PaymentAlreadyFoundError(givenPayment.id),
-				)
+			if (E.isRight(result)) {
+				throw new Error("Expected PaymentAlreadyFoundError")
 			}
+
+			assert.deepEqual(
+				result.left,
+				new PaymentAlreadyFoundError(givenPayment.id),
+			)
 		})
 	})
 

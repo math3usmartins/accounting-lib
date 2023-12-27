@@ -1,3 +1,4 @@
+import * as E from "fp-ts/lib/Either"
 import type { Payment } from "../Payment"
 import { PaymentAlreadyFoundError } from "./Error/PaymentAlreadyFoundError"
 
@@ -14,13 +15,12 @@ export class PaymentCollection {
 		return alreadyExistingIndex >= 0
 	}
 
-	public with(payment: Payment): PaymentCollection {
-		if (this.contains(payment)) {
-			throw new PaymentAlreadyFoundError(payment.id)
-		}
-
-		return new PaymentCollection([...this._items, payment])
-	}
+	public with = (
+		payment: Payment,
+	): E.Either<PaymentAlreadyFoundError, PaymentCollection> =>
+		this.contains(payment)
+			? E.left(new PaymentAlreadyFoundError(payment.id))
+			: E.right(new PaymentCollection([...this._items, payment]))
 
 	public total = (): number =>
 		this._items.reduce(

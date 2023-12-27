@@ -12,17 +12,34 @@ import { type Invoice } from "./Receivable/Invoice"
 import { CustomerAccountVersion } from "./CustomerAccount/CustomerAccountVersion"
 import { ReceivableAlreadyAllocatedError } from "./CustomerAccount/Error/ReceivableAlreadyAllocatedError"
 
+import * as fp from "fp-ts/function"
+import * as Either from "fp-ts/lib/Either"
+import { Either as TEither } from "fp-ts/lib/Either"
+import { onReceivableAddedToCustomerAccount } from "./CustomerAccount/CustomerAccountListener"
+
 export type CustomerAccountMutation = Mutation<
 	CustomerAccount,
 	CustomerAccountEvent
 >
 
-export class CustomerAccount {
+interface ICustomerAccount {
+	allocateReceivable(
+		receivable: Receivable<Invoice>,
+		dateTime: Timestamp,
+	): TEither<ReceivableAlreadyAllocatedError, CustomerAccountMutation>
+
+	allocatePayment(
+		payment: Payment,
+		dateTime: Timestamp,
+	): TEither<Error, CustomerAccountMutation>
+}
+
+export class CustomerAccount implements ICustomerAccount {
 	constructor(
 		public readonly id: CustomerAccountId,
-		private readonly version: CustomerAccountVersion,
-		private readonly receivables: ReceivableCollection<Invoice>,
-		private readonly payments: PaymentCollection,
+		public readonly version: CustomerAccountVersion,
+		public readonly receivables: ReceivableCollection<Invoice>,
+		public readonly payments: PaymentCollection,
 	) {}
 
 	public static initial(id: CustomerAccountId): CustomerAccount {
@@ -34,112 +51,90 @@ export class CustomerAccount {
 		)
 	}
 
-	public static fromEvents(
-		id: CustomerAccountId,
-		events: CustomerAccountEvent[],
-	): CustomerAccount {
-		return events.reduce(
-			(account: CustomerAccount, event: CustomerAccountEvent) => {
-				if (event instanceof PaymentAddedToCustomerAccount) {
-					return account.allocatePayment(
-						event.payment,
-						event.dateTime,
-					).mutant
-				}
-
-				if (event instanceof ReceivableAddedToCustomerAccount) {
-					return account.onReceivableAddedToCustomerAccount(event)
-						.mutant
-				}
-
-				throw new Error("Event not supported" + event.constructor.name)
-			},
-			CustomerAccount.initial(id),
-		)
-	}
-
-	public allocateReceivable(
+	public allocateReceivable = (
 		receivable: Receivable<Invoice>,
 		dateTime: Timestamp,
-	): CustomerAccountMutation {
-		if (this.receivables.contains(receivable)) {
-			throw ReceivableAlreadyAllocatedError.fromInvoice(receivable)
-		}
-
-		const event = new ReceivableAddedToCustomerAccount(
-			receivable,
-			this.id,
-			dateTime,
+	): TEither<ReceivableAlreadyAllocatedError, CustomerAccountMutation> =>
+		fp.pipe(
+			this.receivables,
+			Either.fromPredicate(
+				(receivables) => !receivables.contains(receivable),
+				() => ReceivableAlreadyAllocatedError.fromInvoice(receivable),
+			),
+			Either.map(
+				() =>
+					new ReceivableAddedToCustomerAccount(
+						receivable,
+						this.id,
+						dateTime,
+					),
+			),
+			Either.map((event) =>
+				fp.pipe(
+					onReceivableAddedToCustomerAccount(this, event),
+					(mutation) =>
+						new Mutation(mutation.mutant, [
+							event,
+							...mutation.events,
+						]),
+				),
+			),
 		)
 
-		const { mutant, events } =
-			this.onReceivableAddedToCustomerAccount(event)
-
-		return new Mutation(mutant, [event, ...events])
-	}
-
-	public allocatePayment(
+	public allocatePayment = (
 		payment: Payment,
 		dateTime: Timestamp,
-	): CustomerAccountMutation {
-		const payments = this.payments.with(payment)
-		const receivablesMutation = this.receivables.allocatePayment(
-			payment,
-			dateTime,
-		)
-
-		return new Mutation(
-			new CustomerAccount(
-				this.id,
-				this.version.next(),
-				receivablesMutation.mutant,
-				payments,
-			),
-			[
-				new PaymentAddedToCustomerAccount(
-					payment,
-					this.id,
-					payment.dateTime,
+	): TEither<Error, CustomerAccountMutation> =>
+		fp.pipe(
+			this.payments.with(payment),
+			Either.map((payments) =>
+				fp.pipe(
+					this.receivables.distributePayment(payment, dateTime),
+					(receivablesMutation) =>
+						new Mutation(
+							new CustomerAccount(
+								this.id,
+								this.version.next(),
+								receivablesMutation.mutant,
+								payments,
+							),
+							[
+								new PaymentAddedToCustomerAccount(
+									payment,
+									this.id,
+									payment.dateTime,
+								),
+								...receivablesMutation.events,
+							],
+						),
 				),
-				...receivablesMutation.events,
-			],
-		)
-	}
-
-	private onReceivableAddedToCustomerAccount(
-		event: ReceivableAddedToCustomerAccount,
-	): CustomerAccountMutation {
-		const customerWithReceivable = new CustomerAccount(
-			event.customerAccountId,
-			this.version.next(),
-			this.receivables.with(event.receivable),
-			this.payments,
+			),
 		)
 
-		return customerWithReceivable.allocateAvailablePayments(event.dateTime)
-	}
-
-	private allocateAvailablePayments(
+	public allocateAvailablePayments(
 		dateTime: Timestamp,
 	): CustomerAccountMutation {
-		return this.payments.items().reduce(
-			(carry: CustomerAccountMutation, payment: Payment) => {
-				const receivablesAllocationOutput =
-					carry.mutant.receivables.allocatePayment(payment, dateTime)
-
-				const customerWithAllocatedPayments = new CustomerAccount(
-					this.id,
-					this.version,
-					receivablesAllocationOutput.mutant,
-					this.payments,
-				)
-
-				return new Mutation(customerWithAllocatedPayments, [
-					...carry.events,
-					...receivablesAllocationOutput.events,
-				])
-			},
-			new Mutation(this, []),
-		)
+		return this.payments
+			.items()
+			.reduce(
+				(carry: CustomerAccountMutation, payment: Payment) =>
+					fp.pipe(
+						carry.mutant.receivables.distributePayment(
+							payment,
+							dateTime,
+						),
+						(distribution) =>
+							new Mutation(
+								new CustomerAccount(
+									this.id,
+									this.version,
+									distribution.mutant,
+									this.payments,
+								),
+								[...carry.events, ...distribution.events],
+							),
+					),
+				new Mutation(this, []),
+			)
 	}
 }

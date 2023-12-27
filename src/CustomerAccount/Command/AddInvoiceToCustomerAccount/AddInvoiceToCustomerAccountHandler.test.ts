@@ -1,5 +1,6 @@
 import assert from "assert"
 import "mocha"
+
 import { ReceivableId } from "../../../Receivable/ReceivableId"
 import { Invoice } from "../../../Receivable/Invoice"
 import { Timestamp } from "../../../Timestamp"
@@ -15,6 +16,12 @@ import { InMemoryInvoiceRepository } from "../../../Receivable/Repository/InMemo
 import { CustomerAccountEvent } from "../../CustomerAccountEvent"
 import { CustomerAccount } from "../../../CustomerAccount"
 import { ReceivableAlreadyAllocatedError } from "../../Error/ReceivableAlreadyAllocatedError"
+import { CustomerAccountVersion } from "../../CustomerAccountVersion"
+import { ReceivableCollection } from "../../../Receivable/ReceivableCollection"
+import { PaymentCollection } from "../../../Payment/PaymentCollection"
+
+import * as Either from "fp-ts/lib/Either"
+import { CustomerAccountNotFoundError } from "../../Repository/Error/CustomerAccountNotFoundError"
 
 describe("AddInvoiceToCustomerAccountHandler", () => {
 	const customerAccountId = new CustomerAccountId("customer-1")
@@ -29,7 +36,7 @@ describe("AddInvoiceToCustomerAccountHandler", () => {
 	)
 
 	context("success when invoice is unique", () => {
-		it("must add invoice and return events", async () => {
+		it("must add invoice and return customer account", async () => {
 			const handler = new AddInvoiceToCustomerAccountHandler(
 				new InMemoryEventStore<CustomerAccountEvent>([]),
 				new InMemoryCustomerAccountRepository([
@@ -44,21 +51,44 @@ describe("AddInvoiceToCustomerAccountHandler", () => {
 				new Timestamp(123457),
 			)
 
-			const result = await handler.handle(command)
+			const result = await handler.handle(command)()
 
-			assert.equal(result, 1)
+			if (Either.isLeft(result)) {
+				throw result.left
+			}
+
+			assert.deepStrictEqual(
+				JSON.parse(JSON.stringify(result.right)),
+				JSON.parse(
+					JSON.stringify(
+						new CustomerAccount(
+							customerAccountId,
+							new CustomerAccountVersion(2),
+							new ReceivableCollection(customerAccountId, [
+								givenInvoice,
+							]),
+							new PaymentCollection([]),
+						),
+					),
+				),
+			)
 		})
 	})
 
 	context("failure when invoice is duplicated", () => {
-		it("must add invoice and return events", async () => {
+		it("must return error", async () => {
+			const customerAccountWithInvoice = CustomerAccount.initial(
+				customerAccountId,
+			).allocateReceivable(givenInvoice, new Timestamp(123457))
+
+			if (Either.isLeft(customerAccountWithInvoice)) {
+				throw customerAccountWithInvoice.left
+			}
+
 			const handler = new AddInvoiceToCustomerAccountHandler(
 				new InMemoryEventStore<CustomerAccountEvent>([]),
 				new InMemoryCustomerAccountRepository([
-					CustomerAccount.initial(
-						customerAccountId,
-					).allocateReceivable(givenInvoice, new Timestamp(123457))
-						.mutant,
+					customerAccountWithInvoice.right.mutant,
 				]),
 				new InMemoryInvoiceRepository([givenInvoice]),
 			)
@@ -69,19 +99,45 @@ describe("AddInvoiceToCustomerAccountHandler", () => {
 				new Timestamp(123457),
 			)
 
-			let failed = false
+			const result = await handler.handle(command)()
 
-			try {
-				await handler.handle(command)
-			} catch (err) {
-				failed = true
-				assert.deepStrictEqual(
-					err,
-					ReceivableAlreadyAllocatedError.fromInvoice(givenInvoice),
-				)
+			if (Either.isRight(result)) {
+				throw new Error("Expected ReceivableAlreadyAllocatedError")
 			}
 
-			assert.equal(failed, true)
+			assert.deepStrictEqual(
+				result.left,
+				ReceivableAlreadyAllocatedError.fromInvoice(givenInvoice),
+			)
+		})
+	})
+
+	context("customer not found", () => {
+		it("must return error", async () => {
+			const handler = new AddInvoiceToCustomerAccountHandler(
+				new InMemoryEventStore<CustomerAccountEvent>([]),
+				new InMemoryCustomerAccountRepository([]),
+				new InMemoryInvoiceRepository([givenInvoice]),
+			)
+
+			const command = new AddInvoiceToCustomerAccount(
+				givenInvoice.customerAccountId,
+				givenInvoice.id,
+				new Timestamp(123457),
+			)
+
+			const result = await handler.handle(command)()
+
+			if (Either.isRight(result)) {
+				throw new Error("Expected CustomerAccountNotFoundError")
+			}
+
+			assert.deepStrictEqual(
+				result.left,
+				CustomerAccountNotFoundError.fromId(
+					givenInvoice.customerAccountId,
+				),
+			)
 		})
 	})
 })

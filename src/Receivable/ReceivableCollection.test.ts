@@ -225,7 +225,7 @@ describe("ReceivableCollection.allocatePayment()", (): void => {
 
 	scenarios.forEach((scenario: ScenarioForAllocatePayment) => {
 		it(`contains: ${scenario.name}`, () => {
-			const actual = scenario.collection.allocatePayment(
+			const actual = scenario.collection.distributePayment(
 				scenario.payment,
 				scenario.allocatedAt,
 			)
