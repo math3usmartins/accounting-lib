@@ -1,7 +1,7 @@
 import assert from "assert"
 
 import "mocha"
-import { CustomerAccount } from "./CustomerAccount"
+import { CustomerAccount, CustomerAccountMutation } from "./CustomerAccount"
 import { type Receivable } from "./Receivable"
 import { Timestamp } from "./Timestamp"
 import { PaymentCollection } from "./Payment/PaymentCollection"
@@ -52,167 +52,169 @@ const givenInvoice = new Invoice(
 	false,
 )
 
-describe("CustomerAccount.fromEvents()", (): void => {
-	it("ReceivableAddedToCustomerAccount", () => {
-		const actual = CustomerAccount.fromEvents(givenCustomerAccountId, [
-			new ReceivableAddedToCustomerAccount(
-				givenInvoice,
-				givenCustomerAccountId,
-				new Timestamp(332211),
-			),
-		])
-
-		assert.deepStrictEqual(actual.id.value, givenCustomerAccountId.value)
-
-		// p.s. JSON serializing includes only static properties
-		// therefore removing functions, which is expected for this comparison.
-		const rawActual = JSON.parse(JSON.stringify(actual))
-
-		const expected = new CustomerAccount(
-			givenCustomerAccountId,
-			new CustomerAccountVersion(2),
-			new ReceivableCollection(givenCustomerAccountId, [givenInvoice]),
-			new PaymentCollection([]),
-		)
-
-		const rawExpected = JSON.parse(JSON.stringify(expected))
-
-		assert.deepStrictEqual(rawActual, rawExpected)
-	})
-})
-
-describe("CustomerAccount.allocateReceivable()", (): void => {
-	const scenarios: ScenarioToAllocateReceivable[] = [
-		{
-			name: "allocate invoice without any payments",
-			customerAccount: givenCustomerAccount,
-			receivable: givenInvoice,
-			dateTime: new Timestamp(332211),
-			expectedError: null,
-			expectedAggregate: new CustomerAccount(
-				givenCustomerAccountId,
-				new CustomerAccountVersion(2),
-				new ReceivableCollection<Invoice>(givenCustomerAccountId, [
-					givenInvoice,
-				]),
-				new PaymentCollection([]),
-			),
-			expectedEvents: [
+describe("CustomerAccount", (): void => {
+	describe("fromEvents", (): void => {
+		it("must add new receivable", () => {
+			const actual = CustomerAccount.fromEvents(givenCustomerAccountId, [
 				new ReceivableAddedToCustomerAccount(
 					givenInvoice,
 					givenCustomerAccountId,
 					new Timestamp(332211),
 				),
-			],
-		},
-		{
-			name: "allocate invoice with pre-existing payment",
-			customerAccount: givenCustomerAccountWithPayment,
-			receivable: givenInvoice,
-			dateTime: new Timestamp(332211),
-			expectedError: null,
-			expectedAggregate: new CustomerAccount(
-				givenCustomerAccountId,
-				new CustomerAccountVersion(3),
-				new ReceivableCollection<Invoice>(givenCustomerAccountId, [
-					givenInvoice.allocatePayment(
-						new ReceivablePayment(
-							new Timestamp(332211),
-							givenCustomerPayment.id,
-							givenInvoice.amount,
-						),
-					).mutant,
-				]),
-				new PaymentCollection([givenCustomerPayment]),
-			),
-			expectedEvents: [
-				new ReceivableAddedToCustomerAccount(
-					givenInvoice,
-					givenCustomerAccountId,
-					new Timestamp(332211),
-				),
-				new PaymentAllocatedToReceivable(
-					new Timestamp(332211),
-					givenCustomerPayment.id,
-					givenInvoiceId,
-					givenCustomerAccountId,
-					givenInvoice.amount,
-				),
-			],
-		},
-		{
-			name: "fail to allocate same invoice again",
-			customerAccount: givenCustomerAccount.allocateReceivable(
-				givenInvoice,
-				new Timestamp(332211),
-			).mutant,
-			receivable: givenInvoice,
-			dateTime: new Timestamp(332211),
-			expectedError:
-				ReceivableAlreadyAllocatedError.fromInvoice(givenInvoice),
-			expectedAggregate: new CustomerAccount(
-				givenCustomerAccountId,
-				new CustomerAccountVersion(2),
-				new ReceivableCollection<Invoice>(givenCustomerAccountId, [
-					givenInvoice,
-				]),
-				new PaymentCollection([]),
-			),
-			expectedEvents: [
-				new ReceivableAddedToCustomerAccount(
-					givenInvoice,
-					givenCustomerAccountId,
-					new Timestamp(332211),
-				),
-			],
-		},
-	]
+			])
 
-	scenarios.forEach((scenario: ScenarioToAllocateReceivable) => {
-		it(scenario.name, () => {
-			let actual: Mutation<CustomerAccount, CustomerAccountEvent>
-
-			try {
-				actual = scenario.customerAccount.allocateReceivable(
-					scenario.receivable,
-					scenario.dateTime,
-				)
-			} catch (actualError) {
-				if (scenario.expectedError) {
-					assert.deepStrictEqual(actualError, scenario.expectedError)
-					return
-				} else {
-					throw actualError
-				}
-			}
+			assert.deepStrictEqual(
+				actual.id.value,
+				givenCustomerAccountId.value,
+			)
 
 			// p.s. JSON serializing includes only static properties
 			// therefore removing functions, which is expected for this comparison.
 			const rawActual = JSON.parse(JSON.stringify(actual))
 
-			const rawExpectedAggregate = JSON.parse(
-				JSON.stringify(scenario.expectedAggregate),
+			const expected = new CustomerAccount(
+				givenCustomerAccountId,
+				new CustomerAccountVersion(2),
+				new ReceivableCollection(givenCustomerAccountId, [
+					givenInvoice,
+				]),
+				new PaymentCollection([]),
 			)
-			assert.deepStrictEqual(rawActual.mutant, rawExpectedAggregate)
 
-			const rawExpectedEvents = JSON.parse(
-				JSON.stringify(scenario.expectedEvents),
+			const rawExpected = JSON.parse(JSON.stringify(expected))
+
+			assert.deepStrictEqual(rawActual, rawExpected)
+		})
+	})
+
+	describe("allocateReceivable", (): void => {
+		interface Scenario {
+			customerAccount: CustomerAccount
+			receivable: Receivable<Invoice>
+			dateTime: Timestamp
+			expected: CustomerAccountMutation
+		}
+
+		const runScenario = (scenario: Scenario) => {
+			let actual: Mutation<CustomerAccount, CustomerAccountEvent>
+
+			actual = scenario.customerAccount.allocateReceivable(
+				scenario.receivable,
+				scenario.dateTime,
 			)
-			assert.deepStrictEqual(rawActual.events, rawExpectedEvents)
+
+			// p.s. JSON serializing includes only static properties
+			// therefore removing functions, which is expected for this comparison.
+			const rawActual = JSON.parse(JSON.stringify(actual))
+
+			const rawExpected = JSON.parse(JSON.stringify(scenario.expected))
+			assert.deepStrictEqual(rawActual, rawExpected)
+		}
+
+		it("must allocate invoice without any payments", (): void => {
+			runScenario({
+				customerAccount: givenCustomerAccount,
+				receivable: givenInvoice,
+				dateTime: new Timestamp(332211),
+				expected: new Mutation<CustomerAccount, CustomerAccountEvent>(
+					new CustomerAccount(
+						givenCustomerAccountId,
+						new CustomerAccountVersion(2),
+						new ReceivableCollection<Invoice>(
+							givenCustomerAccountId,
+							[givenInvoice],
+						),
+						new PaymentCollection([]),
+					),
+					[
+						new ReceivableAddedToCustomerAccount(
+							givenInvoice,
+							givenCustomerAccountId,
+							new Timestamp(332211),
+						),
+					],
+				),
+			})
+		})
+
+		it("must allocate invoice with pre-existing payment", (): void => {
+			runScenario({
+				customerAccount: givenCustomerAccountWithPayment,
+				receivable: givenInvoice,
+				dateTime: new Timestamp(332211),
+				expected: new Mutation<CustomerAccount, CustomerAccountEvent>(
+					new CustomerAccount(
+						givenCustomerAccountId,
+						new CustomerAccountVersion(3),
+						new ReceivableCollection<Invoice>(
+							givenCustomerAccountId,
+							[
+								givenInvoice.allocatePayment(
+									new ReceivablePayment(
+										new Timestamp(332211),
+										givenCustomerPayment.id,
+										givenInvoice.amount,
+									),
+								).mutant,
+							],
+						),
+						new PaymentCollection([givenCustomerPayment]),
+					),
+					[
+						new ReceivableAddedToCustomerAccount(
+							givenInvoice,
+							givenCustomerAccountId,
+							new Timestamp(332211),
+						),
+						new PaymentAllocatedToReceivable(
+							new Timestamp(332211),
+							givenCustomerPayment.id,
+							givenInvoiceId,
+							givenCustomerAccountId,
+							givenInvoice.amount,
+						),
+					],
+				),
+			})
+		})
+
+		it("must fail to allocate same invoice again", (): void => {
+			try {
+				runScenario({
+					customerAccount: givenCustomerAccount.allocateReceivable(
+						givenInvoice,
+						new Timestamp(332211),
+					).mutant,
+					receivable: givenInvoice,
+					dateTime: new Timestamp(332211),
+					expected: new Mutation<
+						CustomerAccount,
+						CustomerAccountEvent
+					>(
+						new CustomerAccount(
+							givenCustomerAccountId,
+							new CustomerAccountVersion(2),
+							new ReceivableCollection<Invoice>(
+								givenCustomerAccountId,
+								[givenInvoice],
+							),
+							new PaymentCollection([]),
+						),
+						[
+							new ReceivableAddedToCustomerAccount(
+								givenInvoice,
+								givenCustomerAccountId,
+								new Timestamp(332211),
+							),
+						],
+					),
+				})
+			} catch (err) {
+				assert.deepStrictEqual(
+					err,
+					ReceivableAlreadyAllocatedError.fromInvoice(givenInvoice),
+				)
+			}
 		})
 	})
 })
-
-interface ScenarioToAllocateReceivable {
-	name: string
-	customerAccount: CustomerAccount
-	receivable: Receivable<Invoice>
-	dateTime: Timestamp
-	expectedError: Error | null
-	expectedAggregate: CustomerAccount
-	expectedEvents: Array<
-		| PaymentAllocatedToReceivable
-		| PaymentAddedToCustomerAccount
-		| ReceivableAddedToCustomerAccount
-	>
-}

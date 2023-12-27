@@ -9,13 +9,6 @@ import { Timestamp } from "../Timestamp"
 import { PaymentAlreadyFoundError } from "./Error/PaymentAlreadyFoundError"
 
 describe("PaymentCollection", (): void => {
-	interface ScenarioToTestContains {
-		name: string
-		collection: PaymentCollection
-		payment: Payment
-		expected: boolean
-	}
-
 	const givenPayment = new Payment(
 		new PaymentId("1"),
 		new Timestamp(11),
@@ -28,88 +21,80 @@ describe("PaymentCollection", (): void => {
 		new Money(Currency.EUR, 222),
 	)
 
-	const scenariosToTestContains: ScenarioToTestContains[] = [
-		{
-			name: "empty collection",
-			collection: new PaymentCollection([]),
-			payment: givenPayment,
-			expected: false,
-		},
-		{
-			name: "payment not found",
-			collection: new PaymentCollection([givenPayment]),
-			payment: anotherPayment,
-			expected: false,
-		},
-		{
-			name: "payment found in first position",
-			collection: new PaymentCollection([givenPayment, anotherPayment]),
-			payment: givenPayment,
-			expected: true,
-		},
-		{
-			name: "payment found in last position",
-			collection: new PaymentCollection([givenPayment, anotherPayment]),
-			payment: anotherPayment,
-			expected: true,
-		},
-	]
+	describe("contains", () => {
+		it("must support empty collection", () => {
+			const collection = new PaymentCollection([])
 
-	scenariosToTestContains.forEach((scenario: ScenarioToTestContains) => {
-		it(`contains: ${scenario.name}`, (): void => {
-			const actual = scenario.collection.contains(scenario.payment)
-			assert.equal(actual, scenario.expected)
+			assert.equal(collection.contains(givenPayment), false)
+		})
+
+		it("must support payment not found", () => {
+			const collection = new PaymentCollection([givenPayment])
+
+			assert.equal(collection.contains(anotherPayment), false)
+		})
+
+		it("must find payment in first position", () => {
+			const collection = new PaymentCollection([
+				givenPayment,
+				anotherPayment,
+			])
+
+			assert.equal(collection.contains(givenPayment), true)
+		})
+
+		it("must find payment in last position", () => {
+			const collection = new PaymentCollection([
+				givenPayment,
+				anotherPayment,
+			])
+
+			assert.equal(collection.contains(anotherPayment), true)
 		})
 	})
 
-	interface ScenarioToTestAppending {
-		name: string
-		collection: PaymentCollection
-		payment: Payment
-		expected: PaymentCollection | Error
-	}
+	describe("with", () => {
+		it("must append to empty collection", () => {
+			const collection = new PaymentCollection([])
 
-	const scenariosToTestAppending: ScenarioToTestAppending[] = [
-		{
-			name: "empty collection",
-			collection: new PaymentCollection([]),
-			payment: givenPayment,
-			expected: new PaymentCollection([givenPayment]),
-		},
-		{
-			name: "non empty collection",
-			collection: new PaymentCollection([givenPayment]),
-			payment: anotherPayment,
-			expected: new PaymentCollection([givenPayment, anotherPayment]),
-		},
-		{
-			name: "payment already found",
-			collection: new PaymentCollection([givenPayment]),
-			payment: givenPayment,
-			expected: new PaymentAlreadyFoundError(givenPayment.id),
-		},
-	]
+			assert.deepEqual(
+				collection.with(givenPayment).items(),
+				new PaymentCollection([givenPayment]).items(),
+			)
+		})
 
-	scenariosToTestAppending.forEach((scenario: ScenarioToTestAppending) => {
-		it(`append payment: ${scenario.name}`, (): void => {
-			if (scenario.expected instanceof Error) {
-				let err = false
+		it("must append to non empty collection", () => {
+			const collection = new PaymentCollection([givenPayment])
+			const expected = new PaymentCollection([
+				givenPayment,
+				anotherPayment,
+			])
 
-				try {
-					scenario.collection.with(scenario.payment)
-					assert.equal(false, true, "expected an error here")
-				} catch (e) {
-					assert.deepEqual(e, scenario.expected)
-					err = true
+			assert.deepEqual(
+				collection.with(anotherPayment).items(),
+				expected.items(),
+			)
+		})
+
+		it("must fail to append already found payment", () => {
+			const collection = new PaymentCollection([givenPayment])
+
+			try {
+				collection.with(givenPayment)
+
+				assert.equal(false, true, "expected to throw an exception")
+			} catch (err) {
+				const isExpectedErrorType =
+					err instanceof PaymentAlreadyFoundError
+
+				if (!isExpectedErrorType) {
+					throw err
 				}
 
-				assert.equal(err, true)
-			}
-
-			if (scenario.expected instanceof PaymentCollection) {
-				const actual = scenario.collection.with(scenario.payment)
-
-				assert.deepEqual(actual.items(), scenario.expected.items())
+				assert.deepEqual(
+					err,
+					new PaymentAlreadyFoundError(givenPayment.id),
+				)
 			}
 		})
 	})

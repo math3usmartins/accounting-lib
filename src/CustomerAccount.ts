@@ -12,7 +12,10 @@ import { type Invoice } from "./Receivable/Invoice"
 import { CustomerAccountVersion } from "./CustomerAccount/CustomerAccountVersion"
 import { ReceivableAlreadyAllocatedError } from "./CustomerAccount/Error/ReceivableAlreadyAllocatedError"
 
-type CustomerAccountMutation = Mutation<CustomerAccount, CustomerAccountEvent>
+export type CustomerAccountMutation = Mutation<
+	CustomerAccount,
+	CustomerAccountEvent
+>
 
 export class CustomerAccount {
 	constructor(
