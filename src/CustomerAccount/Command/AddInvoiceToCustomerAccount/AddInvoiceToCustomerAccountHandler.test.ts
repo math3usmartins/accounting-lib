@@ -10,18 +10,22 @@ import { Currency } from "../../../Currency"
 import { ReceivablePaymentCollection } from "../../../Receivable/Payment/ReceivablePaymentCollection"
 import { AddInvoiceToCustomerAccount } from "./AddInvoiceToCustomerAccount"
 import { AddInvoiceToCustomerAccountHandler } from "./AddInvoiceToCustomerAccountHandler"
-import { InMemoryEventStore } from "../../../EventStore/InMemoryEventStore"
-import { InMemoryCustomerAccountRepository } from "../../Repository/InMemoryCustomerAccountRepository"
+import { EventStoreCustomerAccountRepository } from "../../Repository/EventStoreCustomerAccountRepository"
 import { InMemoryInvoiceRepository } from "../../../Receivable/Repository/InMemoryInvoiceRepository"
-import { CustomerAccountEvent } from "../../CustomerAccountEvent"
 import { CustomerAccount } from "../../../CustomerAccount"
 import { ReceivableAlreadyAllocatedError } from "../../Error/ReceivableAlreadyAllocatedError"
 import { CustomerAccountVersion } from "../../CustomerAccountVersion"
 import { ReceivableCollection } from "../../../Receivable/ReceivableCollection"
 import { PaymentCollection } from "../../../Payment/PaymentCollection"
-
-import * as Either from "fp-ts/lib/Either"
 import { CustomerAccountNotFoundError } from "../../Repository/Error/CustomerAccountNotFoundError"
+import { CustomerAccountCreated } from "../../Event/CustomerAccountCreated"
+import { ReceivableAddedToCustomerAccount } from "../../Event/ReceivableAddedToCustomerAccount"
+
+import * as fp from "fp-ts/function"
+import * as Either from "fp-ts/lib/Either"
+import * as TaskEither from "fp-ts/lib/TaskEither"
+import { InMemoryEventStore } from "../../../EventStore/InMemoryEventStore"
+import { CustomerAccountEvent } from "../../CustomerAccountEvent"
 
 describe("AddInvoiceToCustomerAccountHandler", () => {
 	const customerAccountId = new CustomerAccountId("customer-1")
@@ -37,11 +41,24 @@ describe("AddInvoiceToCustomerAccountHandler", () => {
 
 	context("success when invoice is unique", () => {
 		it("must add invoice and return customer account", async () => {
+			const eventStore = new InMemoryEventStore<CustomerAccountEvent>([
+				{
+					name: `customeraccount/${customerAccountId.value}`,
+					events: [
+						new CustomerAccountCreated(
+							customerAccountId,
+							new Timestamp(123456),
+						),
+					],
+				},
+			])
+
+			const repository = new EventStoreCustomerAccountRepository(
+				eventStore,
+			)
+
 			const handler = new AddInvoiceToCustomerAccountHandler(
-				new InMemoryEventStore<CustomerAccountEvent>([]),
-				new InMemoryCustomerAccountRepository([
-					CustomerAccount.initial(customerAccountId),
-				]),
+				repository,
 				new InMemoryInvoiceRepository([givenInvoice]),
 			)
 
@@ -52,6 +69,8 @@ describe("AddInvoiceToCustomerAccountHandler", () => {
 			)
 
 			const result = await handler.handle(command)()
+			const streamName = `customeraccount/${customerAccountId.value}`
+			const events = await eventStore.read(streamName)()
 
 			if (Either.isLeft(result)) {
 				throw result.left
@@ -72,6 +91,21 @@ describe("AddInvoiceToCustomerAccountHandler", () => {
 					),
 				),
 			)
+
+			await fp.pipe(
+				repository.getById(givenInvoice.customerAccountId),
+				TaskEither.match(
+					(err) => {
+						throw err
+					},
+					(accountFromRepo) => {
+						assert.deepStrictEqual(
+							accountFromRepo.receivables.contains(givenInvoice),
+							true,
+						)
+					},
+				),
+			)()
 		})
 	})
 
@@ -85,11 +119,29 @@ describe("AddInvoiceToCustomerAccountHandler", () => {
 				throw customerAccountWithInvoice.left
 			}
 
+			const eventStore = new InMemoryEventStore<CustomerAccountEvent>([
+				{
+					name: `customeraccount/${customerAccountId.value}`,
+					events: [
+						new CustomerAccountCreated(
+							customerAccountId,
+							new Timestamp(123456),
+						),
+						new ReceivableAddedToCustomerAccount(
+							givenInvoice,
+							customerAccountId,
+							new Timestamp(123456),
+						),
+					],
+				},
+			])
+
+			const repository = new EventStoreCustomerAccountRepository(
+				eventStore,
+			)
+
 			const handler = new AddInvoiceToCustomerAccountHandler(
-				new InMemoryEventStore<CustomerAccountEvent>([]),
-				new InMemoryCustomerAccountRepository([
-					customerAccountWithInvoice.right.mutant,
-				]),
+				repository,
 				new InMemoryInvoiceRepository([givenInvoice]),
 			)
 
@@ -114,9 +166,10 @@ describe("AddInvoiceToCustomerAccountHandler", () => {
 
 	context("customer not found", () => {
 		it("must return error", async () => {
+			const eventStore = new InMemoryEventStore<CustomerAccountEvent>([])
+
 			const handler = new AddInvoiceToCustomerAccountHandler(
-				new InMemoryEventStore<CustomerAccountEvent>([]),
-				new InMemoryCustomerAccountRepository([]),
+				new EventStoreCustomerAccountRepository(eventStore),
 				new InMemoryInvoiceRepository([givenInvoice]),
 			)
 

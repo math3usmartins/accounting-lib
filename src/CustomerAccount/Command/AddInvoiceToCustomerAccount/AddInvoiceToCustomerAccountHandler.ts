@@ -1,6 +1,4 @@
-import { type EventStore } from "../../../EventStore"
 import { type InvoiceRepository } from "../../../Receivable/InvoiceRepository"
-import { type CustomerAccountEvent } from "../../CustomerAccountEvent"
 import { type CustomerAccountRepository } from "../../CustomerAccountRepository"
 import { type AddInvoiceToCustomerAccount } from "./AddInvoiceToCustomerAccount"
 
@@ -11,7 +9,6 @@ import * as TaskEither from "fp-ts/lib/TaskEither"
 
 export class AddInvoiceToCustomerAccountHandler {
 	constructor(
-		private readonly eventStore: EventStore<CustomerAccountEvent>,
 		private readonly customerAccountRepository: CustomerAccountRepository,
 		private readonly invoiceRepository: InvoiceRepository,
 	) {}
@@ -26,8 +23,10 @@ export class AddInvoiceToCustomerAccountHandler {
 				fp.pipe(
 					allocation,
 					Either.map((mutation) => {
-						this.eventStore.append(mutation.events)
-						this.eventStore.flush()
+						this.customerAccountRepository.append(
+							command.customerAccountId,
+							mutation.events,
+						)
 
 						return mutation.mutant
 					}),
