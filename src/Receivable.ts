@@ -6,6 +6,8 @@ import { type Money } from "./Money"
 import { type ReceivablePayment } from "./Receivable/Payment/ReceivablePayment"
 import { type Mutation } from "./Mutation"
 import { type PaymentAllocatedToReceivable } from "./Receivable/Event/PaymentAllocatedToReceivable"
+import { type ReceivableEvent } from "./Receivable/Event/ReceivableEvent"
+import { type Either } from "fp-ts/lib/Either"
 
 export interface Receivable<Type> {
 	id: ReceivableId
@@ -19,4 +21,6 @@ export interface Receivable<Type> {
 	allocatePayment: (
 		payment: ReceivablePayment,
 	) => Mutation<Type, PaymentAllocatedToReceivable>
+
+	onEvent: (event: ReceivableEvent) => Either<Error, Receivable<Type>>
 }

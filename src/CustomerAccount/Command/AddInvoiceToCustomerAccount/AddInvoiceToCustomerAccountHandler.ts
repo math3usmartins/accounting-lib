@@ -1,6 +1,7 @@
-import { type InvoiceRepository } from "../../../Receivable/InvoiceRepository"
+import { type ReceivableRepository } from "../../../Receivable/ReceivableRepository"
 import { type CustomerAccountRepository } from "../../CustomerAccountRepository"
 import { type AddInvoiceToCustomerAccount } from "./AddInvoiceToCustomerAccount"
+import { Invoice } from "../../../Receivable/Invoice"
 
 import * as fp from "fp-ts/function"
 import * as Apply from "fp-ts/lib/Apply"
@@ -10,7 +11,7 @@ import * as TaskEither from "fp-ts/lib/TaskEither"
 export class AddInvoiceToCustomerAccountHandler {
 	constructor(
 		private readonly customerAccountRepository: CustomerAccountRepository,
-		private readonly invoiceRepository: InvoiceRepository,
+		private readonly invoiceRepository: ReceivableRepository<Invoice>,
 	) {}
 
 	public handle = (command: AddInvoiceToCustomerAccount) =>

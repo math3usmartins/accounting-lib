@@ -7,11 +7,18 @@ import { type Money } from "../Money"
 import { type ReceivablePayment } from "./Payment/ReceivablePayment"
 import { type Mutation } from "../Mutation"
 import { type PaymentAllocatedToReceivable } from "./Event/PaymentAllocatedToReceivable"
+import { type ReceivableEvent } from "./Event/ReceivableEvent"
+
+import { type Either } from "fp-ts/lib/Either"
 
 export abstract class AbstractReceivable<Type> implements Receivable<Type> {
 	public abstract allocatePayment(
 		payment: ReceivablePayment,
 	): Mutation<Type, PaymentAllocatedToReceivable>
+
+	public abstract onEvent(
+		event: ReceivableEvent,
+	): Either<Error, Receivable<Type>>
 
 	constructor(
 		public readonly dateTime: Timestamp,
